@@ -1,7 +1,7 @@
 import { promises as fsPromises, createWriteStream, createReadStream } from 'fs';
 import path from 'path';
 import fetch from 'node-fetch';
-import { SignatureClient } from './Signature.js';
+import { SignatureClient } from './signature.js';
 
 const CHUNK_SIZE = 5 * 1024 * 1024;
 const MAX_CONCURRENT_DOWNLOADS = 10;

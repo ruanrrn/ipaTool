@@ -45,32 +45,23 @@
       </div>
     </header>
 
-    <!-- Main Content -->
+    <!-- Main Content with Tab Layout -->
     <main class="container mx-auto px-4 py-8">
-      <!-- Search Section -->
-      <section class="mb-8 animate-fade-in">
-        <AppSearch @app-selected="handleAppSelected" />
-      </section>
-
-      <!-- Account Management -->
-      <section class="mb-8 animate-slide-up">
-        <AccountManager />
-      </section>
-
-      <!-- Download & Sign -->
-      <section class="animate-slide-up" style="animation-delay: 0.1s">
-        <DownloadManager :selected-app="selectedApp" />
-      </section>
-
-      <!-- Download Queue -->
-      <section class="mt-8 animate-slide-up" style="animation-delay: 0.2s">
-        <DownloadQueue />
-      </section>
+      <TabLayout 
+        @app-selected="handleAppSelected"
+        @download-started="handleDownloadStarted"
+        @accounts-updated="handleAccountsUpdated"
+        @remove-item="handleRemoveItem"
+        @clear-queue="handleClearQueue"
+      />
     </main>
 
     <!-- Footer -->
     <footer class="mt-16 py-8 border-t border-gray-200 dark:border-gray-700">
       <div class="container mx-auto px-4 text-center">
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          "直链"模式由浏览器原生下载器显示进度；"带进度"模式由后端SSE推送进度与实时日志。
+        </p>
         <p class="text-gray-600 dark:text-gray-400 mb-2">
           Made with ❤️ by <a href="https://github.com/ruanrrn" class="text-primary-600 hover:underline" target="_blank">ruanrrn</a>
         </p>
@@ -90,24 +81,59 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { onMounted, watch } from 'vue'
 import { useDark } from './composables/useDark'
-import AppSearch from './components/AppSearch.vue'
-import AccountManager from './components/AccountManager.vue'
-import DownloadManager from './components/DownloadManager.vue'
-import DownloadQueue from './components/DownloadQueue.vue'
+import { useAppStore } from './stores/app'
+import TabLayout from './components/TabLayout.vue'
 
 const { isDark, toggleDark } = useDark()
-const selectedApp = ref(null)
+const appStore = useAppStore()
 
 const handleAppSelected = (app) => {
-  selectedApp.value = app
+  appStore.setSelectedApp(app)
+}
+
+const handleDownloadStarted = (task) => {
+  appStore.addToQueue(task)
+  appStore.activeTab = 'queue'
+}
+
+const handleRemoveItem = (index) => {
+  appStore.removeFromQueue(index)
+}
+
+const handleClearQueue = () => {
+  appStore.clearQueue()
+}
+
+const handleAccountsUpdated = (accounts) => {
+  appStore.triggerAccountsUpdate()
+}
+
+const updateDarkClass = () => {
+  const html = document.documentElement
+  const body = document.body
+  
+  if (isDark.value) {
+    html.classList.add('dark')
+    body.classList.add('dark')
+  } else {
+    html.classList.remove('dark')
+    body.classList.remove('dark')
+  }
 }
 
 onMounted(() => {
-  // Check system preference
-  if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-    isDark.value = true
-  }
+  // 初始化暗黑模式
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+  isDark.value = prefersDark
+  
+  // 更新 html 和 body 标签的类
+  updateDarkClass()
+})
+
+// 监听暗黑模式变化
+watch(isDark, () => {
+  updateDarkClass()
 })
 </script>

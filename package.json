@@ -1,35 +1,43 @@
 {
   "name": "ipa-tool",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "A modern IPA download and signing tool with app search capabilities",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:server": "PORT=8080 node server/index.js",
+    "dev:all": "pnpm run dev:server & pnpm run dev",
     "build": "vite build",
     "preview": "vite preview",
-    "start": "node server.js",
-    "electron:dev": "electron .",
-    "electron:build": "electron-builder"
+    "start": "node server/index.js"
   },
   "dependencies": {
+    "@element-plus/icons-vue": "^2.3.2",
+    "@vueuse/core": "^14.2.0",
+    "better-sqlite3": "^11.10.0",
     "cors": "^2.8.6",
+    "dotenv": "^16.4.7",
+    "element-plus": "^2.13.2",
     "express": "^4.22.1",
     "fetch-cookie": "^2.2.0",
     "jszip": "^3.10.1",
     "node-fetch": "^3.3.2",
+    "pinia": "^2.3.0",
     "plist": "^3.1.0",
     "tough-cookie": "^4.1.4",
     "uuid": "^9.0.1",
-    "vue": "^3.5.13",
-    "pinia": "^2.3.0"
+    "vue": "^3.5.13"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.1",
     "autoprefixer": "^10.4.20",
-    "electron": "^34.2.0",
-    "electron-builder": "^25.1.8",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
     "vite": "^6.0.11"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3"
+    ]
   }
 }

@@ -10,6 +10,11 @@ pnpm-debug.log*
 .env.local
 .env.*.local
 
+# Server config files (sensitive data)
+server/data
+server/config/credentials.json
+server/config/accounts.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
