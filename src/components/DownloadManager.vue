@@ -253,6 +253,8 @@ import { ref, onMounted, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { useAppStore } from '../stores/app'
 import { Search, ArrowRight, Download } from '@element-plus/icons-vue'
+import { storage } from '../composables/useStorage.js'
+import { apiService } from '../services/api.js'
 
 const props = defineProps({
   selectedApp: {
@@ -363,38 +365,15 @@ watch([selectedAccount, appid, appVerId, versions, selectedVersion, versionsFetc
   syncStateToStore()
 }, { deep: true })
 
-const API_BASE = '/api'
-
 const loadAccounts = async () => {
-  const saved = localStorage.getItem('ipa_accounts')
-  if (saved) {
-    try {
-      accounts.value = JSON.parse(saved)
-    } catch (e) {
-      accounts.value = []
-    }
-  }
-  
-  // 从服务器获取最新的账号列表
   try {
-    const response = await fetch(`${API_BASE}/accounts`)
-    const data = await response.json()
-    
-    if (data.ok && data.data) {
-      accounts.value = data.data.map(acc => ({
-        token: acc.token,
-        email: acc.email,
-        dsid: acc.dsid,
-        region: acc.region || 'US'
-      }))
-      // 更新本地存储
-      localStorage.setItem('ipa_accounts', JSON.stringify(accounts.value))
-      
-      // 自动选择第一个账号
-      autoSelectFirstAccount()
-    }
+    const allAccounts = await storage.getAllAccounts()
+    accounts.value = allAccounts
+    // 自动选择第一个账号
+    autoSelectFirstAccount()
   } catch (error) {
-    console.error('Failed to load accounts from server:', error)
+    console.error('Failed to load accounts:', error)
+    accounts.value = []
   }
 }
 
@@ -484,22 +463,28 @@ const fetchVersions = async () => {
   }
 
   const account = accounts.value[selectedAccount.value]
-  const region = account?.region || 'US'
 
   fetchingVersions.value = true
-  addLog(`[查询] 正在查询 APPID=${appid.value} 的历史版本（区域：${getRegionLabel(region)}）...`)
+  addLog(`[查询] 正在查询 APPID=${appid.value} 的历史版本（区域：${getRegionLabel(account.region || 'US')}）...`)
 
   try {
-    const response = await fetch(`${API_BASE}/versions?appid=${encodeURIComponent(appid.value)}&region=${encodeURIComponent(region)}`)
-    const data = await response.json()
+    const result = await apiService.getApp(appid.value, account)
 
-    if (!data.ok) {
-      alert(`查询失败：${data.error || '未知错误'}`)
-      addLog(`[查询] 失败：${data.error || '未知错误'}`)
+    if (!result.ok) {
+      alert(`查询失败：${result.error || '未知错误'}`)
+      addLog(`[查询] 失败：${result.error || '未知错误'}`)
       return
     }
 
-    versions.value = data.data || []
+    // 处理返回的版本数据
+    const app = result.data
+    versions.value = app && app.bundleId ? [{
+      bundleId: app.bundleId,
+      version: app.version,
+      appVerId: app.appVerId || app.trackId,
+      displayName: app.trackName || app.bundleId
+    }] : []
+
     versionsFetched.value = true
     addLog(`[查询] 获取到 ${versions.value.length} 条版本记录`)
   } catch (error) {
@@ -528,23 +513,22 @@ const directLinkDownload = async () => {
   addLog('[直链] 获取直链中…')
 
   try {
-    const url = `${API_BASE}/download-url?token=${encodeURIComponent(account.token)}&appid=${encodeURIComponent(appid.value)}${appVerId.value ? `&appVerId=${encodeURIComponent(appVerId.value)}` : ''}`
-    const response = await fetch(url)
-    const data = await response.json()
+    const result = await apiService.getDownloadUrl(appid.value, appVerId.value, account)
 
-    if (!data.ok) {
-      alert(`直链获取失败：${data.error || '未知错误'}`)
-      addLog(`[直链] 失败：${data.error || '未知错误'}`)
+    if (!result.ok) {
+      alert(`直链获取失败：${result.error || '未知错误'}`)
+      addLog(`[直链] 失败：${result.error || '未知错误'}`)
       return
     }
 
-    addLog(`[直链] 成功：文件名=${data.fileName}，即将从 Apple CDN 直连下载`)
-    addLog(`[直链] URL（部分）=${String(data.url).slice(0, 80)}...`)
+    const { url, fileName } = result.data
+    addLog(`[直链] 成功：文件名=${fileName}，即将从 Apple CDN 直连下载`)
+    addLog(`[直链] URL（部分）=${String(url).slice(0, 80)}...`)
 
     // Trigger browser download
     const a = document.createElement('a')
-    a.href = data.url
-    a.download = data.fileName || ''
+    a.href = url
+    a.download = fileName || ''
     a.rel = 'noopener'
     document.body.appendChild(a)
     a.click()

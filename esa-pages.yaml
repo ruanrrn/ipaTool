@@ -1,0 +1,30 @@
+# ESA Pages 部署配置
+
+# 构建输出目录
+output: dist
+
+# 构建命令
+build_command: pnpm run build
+
+# 环境变量
+env:
+  - NODE_ENV=production
+
+# 路由配置
+routes:
+  # API 路由
+  - src: /api/*
+    dest: /api/$1
+    type: function
+
+  # 静态文件
+  - src: /*
+    dest: /$1
+    type: static
+
+# 函数配置
+functions:
+  api:
+    runtime: nodejs20
+    memory: 512
+    timeout: 30

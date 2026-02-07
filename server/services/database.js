@@ -1,317 +1,208 @@
-import fs from 'fs/promises';
-import { existsSync } from 'fs';
+/**
+ * 纯内存数据库服务 - 适配 ESA Pages / Serverless 环境
+ * 不依赖 SQLite3，所有数据存储在内存中
+ */
+
+import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// Get the current directory name since we're using ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const dbPath = path.join(__dirname, '..', 'data', 'ipa-webtool.json');
+// 内存存储
+let memoryStore = {
+  accounts: [],
+  credentials: [],
+  encryption_keys: []
+};
 
-// Create data directory if it doesn't exist
-const dataDir = path.join(__dirname, '..', 'data');
-if (!existsSync(dataDir)) {
-  await fs.mkdir(dataDir, { recursive: true });
-}
+// 尝试从本地文件加载数据（仅开发环境）
+const dataPath = path.join(__dirname, '..', 'data', 'ipa-webtool.json');
 
-// 尝试使用Better-SQLite3，如果失败则回退到JSON文件存储
-let db = null;
-let useSqlite = true;
-
-try {
-  // 尝试动态导入better-sqlite3
-  const Database = (await import('better-sqlite3')).default;
-  const sqliteDb = new Database(dbPath.replace('.json', '.db'));
-  
-  // 设置 WAL 模式以提高并发性能
-  sqliteDb.exec('PRAGMA journal_mode = WAL;');
-  sqliteDb.exec('PRAGMA foreign_keys = ON;');
-
-  // 创建accounts表
-  sqliteDb.exec(`
-    CREATE TABLE IF NOT EXISTS accounts (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      token TEXT UNIQUE NOT NULL,
-      email TEXT NOT NULL,
-      region TEXT DEFAULT 'US',
-      guid TEXT,
-      cookie_user TEXT,
-      cookies TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-
-  // 检查并添加region字段（用于升级旧数据库）
+async function loadFromFile() {
   try {
-    const columns = sqliteDb.prepare("PRAGMA table_info(accounts)").all();
-    const hasRegion = columns.some(col => col.name === 'region');
-    if (!hasRegion) {
-      sqliteDb.exec('ALTER TABLE accounts ADD COLUMN region TEXT DEFAULT \"US\"');
-      console.log('Added region column to accounts table');
-    }
+    const data = await fs.readFile(dataPath, 'utf-8');
+    memoryStore = JSON.parse(data);
+    console.log('✅ Data loaded from file');
   } catch (error) {
-    console.log('Note: Could not add region column (may already exist):', error.message);
-  }
-
-  // 创建credentials表
-  sqliteDb.exec(`
-    CREATE TABLE IF NOT EXISTS credentials (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      email TEXT UNIQUE NOT NULL,
-      password_encrypted TEXT NOT NULL,
-      key_id TEXT NOT NULL,
-      iv TEXT NOT NULL,
-      auth_tag TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-
-  // 创建encryption_keys表
-  sqliteDb.exec(`
-    CREATE TABLE IF NOT EXISTS encryption_keys (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      key_id TEXT UNIQUE NOT NULL,
-      key_value TEXT NOT NULL,
-      is_current BOOLEAN DEFAULT FALSE,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      last_rotation INTEGER NOT NULL,
-      next_rotation INTEGER NOT NULL
-    )
-  `);
-
-  db = sqliteDb;
-  console.log('Better-SQLite3 database initialized successfully');
-} catch (error) {
-  console.warn('Failed to initialize Better-SQLite3 database, falling back to JSON file storage:', error.message);
-  useSqlite = false;
-  
-  // 初始化JSON数据文件
-  try {
-    await fs.access(dbPath);
-  } catch {
-    await fs.writeFile(dbPath, JSON.stringify({ accounts: [], credentials: [], encryption_keys: [] }));
+    console.log('📝 No existing data file, starting with empty store');
+    memoryStore = {
+      accounts: [],
+      credentials: [],
+      encryption_keys: []
+    };
   }
 }
 
-// 定义数据库操作函数
+// 初始化时加载数据
+await loadFromFile();
+
+// 定期保存到文件（仅开发环境）
+if (process.env.NODE_ENV !== 'production') {
+  setInterval(async () => {
+    try {
+      await fs.mkdir(path.dirname(dataPath), { recursive: true });
+      await fs.writeFile(dataPath, JSON.stringify(memoryStore, null, 2));
+    } catch (error) {
+      // 忽略保存错误
+    }
+  }, 30000);
+}
+
 const database = {
-  // 获取所有账号
-  async getAllAccounts() {
-    if (useSqlite && db) {
-      return db.prepare('SELECT * FROM accounts').all();
-    } else {
-      const data = await fs.readFile(dbPath, 'utf8');
-      const jsonData = JSON.parse(data);
-      return jsonData.accounts || [];
-    }
-  },
-
-  // 根据token获取账号
+  // ========== 账户相关 ==========
+  
   async getAccountByToken(token) {
-    if (useSqlite && db) {
-      return db.prepare('SELECT * FROM accounts WHERE token = ?').get(token);
-    } else {
-      const data = await fs.readFile(dbPath, 'utf8');
-      const jsonData = JSON.parse(data);
-      return (jsonData.accounts || []).find(acc => acc.token === token);
-    }
+    return memoryStore.accounts.find(acc => acc.token === token);
   },
-
-  // 保存账号
-  async saveAccount(token, email, region, guid, cookieUser, cookies) {
-    if (useSqlite && db) {
-      const stmt = db.prepare(
-        `INSERT OR REPLACE INTO accounts 
-        (token, email, region, guid, cookie_user, cookies) 
-        VALUES (?, ?, ?, ?, ?, ?)`
-      );
-      stmt.run(
-        token,
-        email,
-        region || 'US',
-        guid,
-        JSON.stringify(cookieUser),
-        JSON.stringify(cookies)
-      );
-    } else {
-      const data = await fs.readFile(dbPath, 'utf8');
-      const jsonData = JSON.parse(data);
-      
-      const existingIndex = (jsonData.accounts || []).findIndex(acc => acc.token === token);
-      const account = {
-        token,
-        email,
-        region: region || 'US',
-        guid,
-        cookie_user: JSON.stringify(cookieUser),
-        cookies: JSON.stringify(cookies)
-      };
-      
-      if (existingIndex !== -1) {
-        jsonData.accounts[existingIndex] = account;
-      } else {
-        if (!jsonData.accounts) {
-          jsonData.accounts = [];
-        }
-        jsonData.accounts.push(account);
-      }
-      
-      await fs.writeFile(dbPath, JSON.stringify(jsonData, null, 2));
-    }
+  
+  async getAccountByEmail(email) {
+    return memoryStore.accounts.find(acc => acc.email === email);
   },
-
-  // 删除账号
+  
+  async createAccount(accountData) {
+    const newAccount = {
+      id: Date.now(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      ...accountData
+    };
+    memoryStore.accounts.push(newAccount);
+    return newAccount;
+  },
+  
+  async updateAccount(token, updates) {
+    const index = memoryStore.accounts.findIndex(acc => acc.token === token);
+    if (index === -1) return null;
+    
+    memoryStore.accounts[index] = {
+      ...memoryStore.accounts[index],
+      ...updates,
+      updated_at: new Date().toISOString()
+    };
+    return memoryStore.accounts[index];
+  },
+  
   async deleteAccount(token) {
-    if (useSqlite && db) {
-      const stmt = db.prepare('DELETE FROM accounts WHERE token = ?');
-      stmt.run(token);
-    } else {
-      const data = await fs.readFile(dbPath, 'utf8');
-      const jsonData = JSON.parse(data);
-      
-      jsonData.accounts = (jsonData.accounts || []).filter(acc => acc.token !== token);
-      
-      await fs.writeFile(dbPath, JSON.stringify(jsonData, null, 2));
-    }
+    const index = memoryStore.accounts.findIndex(acc => acc.token === token);
+    if (index === -1) return false;
+    
+    memoryStore.accounts.splice(index, 1);
+    return true;
   },
-
-  // 保存凭证
-  async saveCredentials(email, passwordEncrypted, keyId, iv, authTag) {
-    if (useSqlite && db) {
-      const stmt = db.prepare(
-        `INSERT OR REPLACE INTO credentials 
-        (email, password_encrypted, key_id, iv, auth_tag) 
-        VALUES (?, ?, ?, ?, ?)`
-      );
-      stmt.run(
-        email,
-        passwordEncrypted,
-        keyId,
-        iv,
-        authTag
-      );
-    } else {
-      const data = await fs.readFile(dbPath, 'utf8');
-      const jsonData = JSON.parse(data);
-      
-      const existingIndex = (jsonData.credentials || []).findIndex(cred => cred.email === email);
-      const credential = {
-        email,
-        password_encrypted: passwordEncrypted,
-        key_id: keyId,
-        iv,
-        auth_tag: authTag
-      };
-      
-      if (existingIndex !== -1) {
-        jsonData.credentials[existingIndex] = credential;
-      } else {
-        if (!jsonData.credentials) {
-          jsonData.credentials = [];
-        }
-        jsonData.credentials.push(credential);
-      }
-      
-      await fs.writeFile(dbPath, JSON.stringify(jsonData, null, 2));
-    }
+  
+  async getAllAccounts() {
+    return memoryStore.accounts;
   },
-
-  // 删除凭证
+  
+  // ========== 凭证相关 ==========
+  
+  async getCredentialsByEmail(email) {
+    return memoryStore.credentials.find(cred => cred.email === email);
+  },
+  
+  async createCredentials(credData) {
+    const newCred = {
+      id: Date.now(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      ...credData
+    };
+    memoryStore.credentials.push(newCred);
+    return newCred;
+  },
+  
+  async updateCredentials(email, updates) {
+    const index = memoryStore.credentials.findIndex(cred => cred.email === email);
+    if (index === -1) return null;
+    
+    memoryStore.credentials[index] = {
+      ...memoryStore.credentials[index],
+      ...updates,
+      updated_at: new Date().toISOString()
+    };
+    return memoryStore.credentials[index];
+  },
+  
   async deleteCredentials(email) {
-    if (useSqlite && db) {
-      const stmt = db.prepare('DELETE FROM credentials WHERE email = ?');
-      stmt.run(email);
-    } else {
-      const data = await fs.readFile(dbPath, 'utf8');
-      const jsonData = JSON.parse(data);
-      
-      jsonData.credentials = (jsonData.credentials || []).filter(cred => cred.email !== email);
-      
-      await fs.writeFile(dbPath, JSON.stringify(jsonData, null, 2));
-    }
+    const index = memoryStore.credentials.findIndex(cred => cred.email === email);
+    if (index === -1) return false;
+    
+    memoryStore.credentials.splice(index, 1);
+    return true;
   },
-
-  // 获取所有凭证
-  async getAllCredentials() {
-    if (useSqlite && db) {
-      return db.prepare('SELECT * FROM credentials').all();
-    } else {
-      const data = await fs.readFile(dbPath, 'utf8');
-      const jsonData = JSON.parse(data);
-      return jsonData.credentials || [];
-    }
+  
+  // ========== 加密密钥相关 ==========
+  
+  async getCurrentKey() {
+    return memoryStore.encryption_keys.find(key => key.is_current);
   },
-
-  // 保存加密密钥
-  async saveEncryptionKey(keyId, keyValue, isCurrent, lastRotation, nextRotation) {
-    if (useSqlite && db) {
-      // 先将所有密钥标记为非当前
-      if (isCurrent) {
-        db.exec('UPDATE encryption_keys SET is_current = FALSE WHERE is_current = TRUE');
-      }
-      
-      const stmt = db.prepare(
-        `INSERT OR REPLACE INTO encryption_keys 
-        (key_id, key_value, is_current, last_rotation, next_rotation) 
-        VALUES (?, ?, ?, ?, ?)`
-      );
-      stmt.run(
-        keyId,
-        keyValue,
-        isCurrent ? 1 : 0,
-        lastRotation,
-        nextRotation
-      );
-    } else {
-      const data = await fs.readFile(dbPath, 'utf8');
-      const jsonData = JSON.parse(data);
-      
-      if (!jsonData.encryption_keys) {
-        jsonData.encryption_keys = [];
-      }
-      
-      const existingIndex = jsonData.encryption_keys.findIndex(k => k.key_id === keyId);
-      const key = {
-        key_id: keyId,
-        key_value: keyValue,
-        is_current: isCurrent,
-        last_rotation: lastRotation,
-        next_rotation: nextRotation
-      };
-      
-      if (existingIndex !== -1) {
-        jsonData.encryption_keys[existingIndex] = key;
-      } else {
-        jsonData.encryption_keys.push(key);
-      }
-      
-      await fs.writeFile(dbPath, JSON.stringify(jsonData, null, 2));
-    }
+  
+  async getKeyByKeyId(keyId) {
+    return memoryStore.encryption_keys.find(key => key.key_id === keyId);
   },
-
-  // 获取当前加密密钥
-  async getCurrentEncryptionKey() {
-    if (useSqlite && db) {
-      return db.prepare('SELECT * FROM encryption_keys WHERE is_current = TRUE').get();
-    } else {
-      const data = await fs.readFile(dbPath, 'utf8');
-      const jsonData = JSON.parse(data);
-      
-      return (jsonData.encryption_keys || []).find(k => k.is_current === true);
-    }
+  
+  async createKey(keyData) {
+    const newKey = {
+      id: Date.now(),
+      created_at: new Date().toISOString(),
+      ...keyData
+    };
+    memoryStore.encryption_keys.push(newKey);
+    return newKey;
   },
-
-  // 获取所有加密密钥
-  async getAllEncryptionKeys() {
-    if (useSqlite && db) {
-      return db.prepare('SELECT * FROM encryption_keys ORDER BY created_at DESC').all();
-    } else {
-      const data = await fs.readFile(dbPath, 'utf8');
-      const jsonData = JSON.parse(data);
-      return jsonData.encryption_keys || [];
+  
+  async updateKey(keyId, updates) {
+    const index = memoryStore.encryption_keys.findIndex(key => key.key_id === keyId);
+    if (index === -1) return null;
+    
+    memoryStore.encryption_keys[index] = {
+      ...memoryStore.encryption_keys[index],
+      ...updates
+    };
+    return memoryStore.encryption_keys[index];
+  },
+  
+  async setCurrentKey(keyId) {
+    // 取消所有当前密钥
+    memoryStore.encryption_keys.forEach(key => {
+      key.is_current = false;
+    });
+    
+    // 设置新的当前密钥
+    const key = await this.getKeyByKeyId(keyId);
+    if (key) {
+      key.is_current = true;
+      return key;
+    }
+    return null;
+  },
+  
+  // ========== 工具函数 ==========
+  
+  async clearAll() {
+    memoryStore = {
+      accounts: [],
+      credentials: [],
+      encryption_keys: []
+    };
+  },
+  
+  // 导出数据（用于备份）
+  async exportData() {
+    return JSON.stringify(memoryStore, null, 2);
+  },
+  
+  // 导入数据（用于恢复）
+  async importData(jsonData) {
+    try {
+      const data = JSON.parse(jsonData);
+      memoryStore = data;
+      return true;
+    } catch (error) {
+      console.error('Failed to import data:', error);
+      return false;
     }
   }
 };

@@ -158,18 +158,18 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { User, Lock, Key, Right, Delete, Loading } from '@element-plus/icons-vue'
-import { storage } from '../composables/useStorage.js'
-import { apiService } from '../services/api.js'
 
 const emit = defineEmits(['accounts-updated'])
 
 const accounts = ref([])
+const savedCredentials = ref([]) // 保存的账号密码（仅邮箱）
 const newAccount = ref({
   email: '',
   password: '',
   code: ''
 })
 const logging = ref(false)
+const autoLogging = ref(false)
 const savePassword = ref(true) // 默认保存密码
 
 // 表单验证
@@ -177,15 +177,56 @@ const isFormValid = computed(() => {
   return newAccount.value.email && newAccount.value.password
 })
 
-// 从 IndexedDB 加载账户
-const loadAccounts = async () => {
+const API_BASE = '/api'
+
+// 加载保存的凭证列表（仅邮箱）
+const loadSavedCredentials = async () => {
   try {
-    const allAccounts = await storage.getAllAccounts()
-    accounts.value = allAccounts
-    emit('accounts-updated', accounts.value)
+    const response = await fetch(`${API_BASE}/credentials`)
+    const data = await response.json()
+    
+    if (data.ok && data.data) {
+      savedCredentials.value = data.data
+    }
   } catch (error) {
-    console.error('Failed to load accounts:', error)
+    console.error('Failed to load saved credentials:', error)
   }
+}
+
+const loadAccounts = async () => {
+  // 先从 localStorage 加载（用于显示）
+  const saved = localStorage.getItem('ipa_accounts')
+  if (saved) {
+    try {
+      accounts.value = JSON.parse(saved)
+    } catch (e) {
+      accounts.value = []
+    }
+  }
+  
+  // 然后从服务器获取最新的已登录账号列表
+  try {
+    const response = await fetch(`${API_BASE}/accounts`)
+    const data = await response.json()
+    
+    if (data.ok && data.data) {
+      // 同步服务器账号列表到本地
+      accounts.value = data.data.map(acc => ({
+        token: acc.token,
+        email: acc.email,
+        dsid: acc.dsid,
+        region: acc.region || 'US'
+      }))
+      saveAccounts()
+    }
+  } catch (error) {
+    console.error('Failed to load accounts from server:', error)
+  }
+}
+
+const saveAccounts = () => {
+  localStorage.setItem('ipa_accounts', JSON.stringify(accounts.value))
+  emit('accounts-updated', accounts.value)
 }
 
 const loginAccount = async () => {
@@ -193,59 +234,61 @@ const loginAccount = async () => {
     alert('请填写完整的账号信息')
     return
   }
-
+  
   // 检查账号是否已存在
   const existingAccount = accounts.value.find(acc => acc.email === newAccount.value.email)
   if (existingAccount) {
     alert('该账号已登录，无需重复登录')
     return
   }
-
+  
   logging.value = true
-
+  
   try {
-    const result = await apiService.login(
-      newAccount.value.email,
-      newAccount.value.password,
-      newAccount.value.code || undefined
-    )
-
-    if (!result.ok) {
+    const response = await fetch(`${API_BASE}/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        email: newAccount.value.email,
+        password: newAccount.value.password,
+        code: newAccount.value.code || undefined,
+        saveCredentials: savePassword.value
+      })
+    })
+    
+    const data = await response.json()
+    
+    if (!data.ok) {
       // 检查是否需要两步验证码
-      if (result.error && result.error.includes('verification code')) {
+      if (data.error && data.error.includes('verification code')) {
         alert('需要两步验证码，请输入验证码后重试')
         logging.value = false
         return
       }
-      alert(`登录失败：${result.error || '未知错误'}`)
+      alert(`登录失败：${data.error || '未知错误'}`)
       logging.value = false
       return
     }
-
-    // 保存账户信息到 IndexedDB
-    const accountData = {
-      email: result.data.email,
-      region: result.data.region,
-      guid: result.data.guid,
-      cookieUser: result.data.cookieUser,
-      cookies: result.data.cookies,
-      createdAt: Date.now()
-    }
-
-    await storage.saveAccount(accountData)
-
-    // 如果需要保存密码
-    if (savePassword.value) {
-      await storage.savePassword(result.data.email, newAccount.value.password)
-    }
-
-    // 更新账户列表
-    await loadAccounts()
-
+    
+    // 登录成功，保存账号信息
+    accounts.value.push({
+      token: data.token,
+      email: data.email,
+      dsid: data.dsid,
+      region: data.region || 'US'
+    })
+    
+    // 更新保存的凭证列表
+    await loadSavedCredentials()
+    
+    saveAccounts()
+    
     // 重置表单
     newAccount.value = { email: '', password: '', code: '' }
-
-    alert(`登录成功：${result.data.email}`)
+    
+    alert(`登录成功：${data.email}`)
   } catch (error) {
     alert(`登录失败：${error.message}`)
   } finally {
@@ -256,11 +299,21 @@ const loginAccount = async () => {
 const removeAccount = async (index) => {
   if (confirm('确定要删除这个账号吗？')) {
     const account = accounts.value[index]
-
+    
+    // 从服务器删除账号（会同时删除保存的凭证）
     try {
-      await storage.deleteAccount(account.email)
-      accounts.value.splice(index, 1)
-      emit('accounts-updated', accounts.value)
+      const response = await fetch(`${API_BASE}/accounts/${account.token}`, {
+        method: 'DELETE'
+      })
+      
+      if (response.ok) {
+        accounts.value.splice(index, 1)
+        saveAccounts()
+        // 更新保存的凭证列表
+        await loadSavedCredentials()
+      } else {
+        alert('删除失败')
+      }
     } catch (error) {
       console.error('Failed to remove account:', error)
       alert('删除失败')
@@ -268,8 +321,80 @@ const removeAccount = async (index) => {
   }
 }
 
+// 自动登录所有保存的账号
+const autoLoginAll = async () => {
+  if (savedCredentials.value.length === 0) return
+  
+  autoLogging.value = true
+  
+  try {
+    const response = await fetch(`${API_BASE}/auto-login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    
+    const data = await response.json()
+    
+    if (data.ok && data.results) {
+      const { success, needCode, failed } = data.results
+      
+      // 添加成功登录的账号
+      success.forEach(result => {
+        if (!result.alreadyLoggedIn) {
+          accounts.value.push({
+            token: result.token,
+            email: result.email,
+            dsid: result.dsid
+          })
+        }
+      })
+      
+      saveAccounts()
+      
+      // 显示自动登录结果
+      if (success.length > 0 || needCode.length > 0 || failed.length > 0) {
+        let message = ''
+        if (success.length > 0) {
+          message += `成功登录 ${success.length} 个账号`
+        }
+        if (needCode.length > 0) {
+          if (message) message += '，'
+          message += `${needCode.length} 个账号需要验证码`
+        }
+        if (failed.length > 0) {
+          if (message) message += '，'
+          message += `${failed.length} 个账号登录失败`
+        }
+        
+        // 延迟显示，避免打扰用户
+        setTimeout(() => {
+          if (success.length > 0 && needCode.length === 0 && failed.length === 0) {
+            // 全部成功，不显示提示
+          } else {
+            alert(message)
+          }
+        }, 500)
+      }
+    }
+  } catch (error) {
+    console.error('Auto login failed:', error)
+  } finally {
+    autoLogging.value = false
+  }
+}
+
 onMounted(async () => {
+  // 先加载保存的凭证列表
+  await loadSavedCredentials()
+  
+  // 加载已登录账号
   await loadAccounts()
+  
+  // 尝试自动登录保存的账号
+  await autoLoginAll()
+  
   emit('accounts-updated', accounts.value)
 })
 
