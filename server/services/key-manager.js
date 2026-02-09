@@ -79,9 +79,12 @@ class KeyManager {
    * - 保存到数据库
    */
   async rotateKey() {
+    console.log('🔄 开始密钥轮换流程...');
+    
     // 将当前密钥移动到历史密钥集合
     if (this.currentKey) {
       this.previousKeys.set(this.currentKeyId, this.currentKey);
+      console.log(`📦 已将旧密钥移至历史记录: ${this.currentKeyId}`);
     }
 
     // 生成新密钥
@@ -90,14 +93,28 @@ class KeyManager {
     this.lastRotation = Date.now();
     this.nextRotation = this.lastRotation + KEY_ROTATION_INTERVAL;
 
+    console.log(`🔑 生成新密钥:`, {
+      keyId: this.currentKeyId,
+      keyLength: this.currentKey.length,
+      lastRotation: this.lastRotation,
+      nextRotation: this.nextRotation
+    });
+
     // 保存到数据库
-    await db.saveEncryptionKey(
-      this.currentKeyId,
-      this.currentKey,
-      true, // 标记为当前密钥
-      this.lastRotation,
-      this.nextRotation
-    );
+    try {
+      await db.saveEncryptionKey(
+        this.currentKeyId,
+        this.currentKey,
+        true, // 标记为当前密钥
+        this.lastRotation,
+        this.nextRotation
+      );
+    } catch (error) {
+      console.error('❌ 密钥保存失败，回滚密钥状态:', error);
+      this.currentKey = null;
+      this.currentKeyId = null;
+      throw error;
+    }
 
     console.log(`🔐 首次运行，正在生成加密密钥...`);
     console.log(`✅ 新密钥已生成 (ID: ${this.currentKeyId})`);

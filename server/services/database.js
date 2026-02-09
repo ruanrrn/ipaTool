@@ -1,5 +1,5 @@
 import fs from 'fs/promises';
-import { existsSync } from 'fs';
+import { existsSync, mkdirSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -9,10 +9,11 @@ const __dirname = path.dirname(__filename);
 
 const dbPath = path.join(__dirname, '..', 'data', 'ipa-webtool.json');
 
-// Create data directory if it doesn't exist
+// Create data directory if it doesn't exist (synchronous)
 const dataDir = path.join(__dirname, '..', 'data');
 if (!existsSync(dataDir)) {
-  await fs.mkdir(dataDir, { recursive: true });
+  mkdirSync(dataDir, { recursive: true });
+  console.log('📁 创建数据目录:', dataDir);
 }
 
 // 尝试使用Better-SQLite3，如果失败则回退到JSON文件存储
@@ -22,7 +23,9 @@ let useSqlite = true;
 try {
   // 尝试动态导入better-sqlite3
   const Database = (await import('better-sqlite3')).default;
-  const sqliteDb = new Database(dbPath.replace('.json', '.db'));
+  const sqliteDbPath = dbPath.replace('.json', '.db');
+  console.log('🗄️  初始化 SQLite 数据库:', sqliteDbPath);
+  const sqliteDb = new Database(sqliteDbPath);
   
   // 设置 WAL 模式以提高并发性能
   sqliteDb.exec('PRAGMA journal_mode = WAL;');
@@ -81,6 +84,24 @@ try {
       next_rotation INTEGER NOT NULL
     )
   `);
+
+  // 验证 encryption_keys 表结构
+  try {
+    const keyTableInfo = sqliteDb.prepare("PRAGMA table_info(encryption_keys)").all();
+    console.log('📋 encryption_keys 表结构:', keyTableInfo.map(col => ({ name: col.name, type: col.type, notnull: col.notnull })));
+    
+    // 检查是否有必需的列
+    const requiredColumns = ['key_id', 'key_value', 'is_current', 'last_rotation', 'next_rotation'];
+    const existingColumns = keyTableInfo.map(col => col.name);
+    const missingColumns = requiredColumns.filter(col => !existingColumns.includes(col));
+    
+    if (missingColumns.length > 0) {
+      console.error('❌ encryption_keys 表缺少必需的列:', missingColumns);
+      throw new Error(`Missing required columns: ${missingColumns.join(', ')}`);
+    }
+  } catch (error) {
+    console.error('❌ 验证表结构失败:', error);
+  }
 
   // 创建download_records表
   sqliteDb.exec(`
@@ -299,24 +320,37 @@ const database = {
 
   // 保存加密密钥
   async saveEncryptionKey(keyId, keyValue, isCurrent, lastRotation, nextRotation) {
+    console.log('📝 保存加密密钥:', { keyId, isCurrent, lastRotation, nextRotation });
+    
     if (useSqlite && db) {
+      // 验证所有必需参数
+      if (!keyId || keyValue === null || keyValue === undefined) {
+        throw new Error('Missing required parameters for saveEncryptionKey');
+      }
+      
       // 先将所有密钥标记为非当前
       if (isCurrent) {
         db.exec('UPDATE encryption_keys SET is_current = FALSE WHERE is_current = TRUE');
       }
       
-      const stmt = db.prepare(
-        `INSERT OR REPLACE INTO encryption_keys 
-        (key_id, key_value, is_current, last_rotation, next_rotation) 
-        VALUES (?, ?, ?, ?, ?)`
-      );
-      stmt.run(
-        keyId,
-        keyValue,
-        isCurrent ? 1 : 0,
-        lastRotation,
-        nextRotation
-      );
+      try {
+        const stmt = db.prepare(
+          `INSERT OR REPLACE INTO encryption_keys 
+          (key_id, key_value, is_current, last_rotation, next_rotation) 
+          VALUES (?, ?, ?, ?, ?)`
+        );
+        stmt.run(
+          keyId,
+          keyValue,
+          isCurrent ? 1 : 0,
+          lastRotation,
+          nextRotation
+        );
+        console.log('✅ 加密密钥保存成功');
+      } catch (error) {
+        console.error('❌ 保存加密密钥失败:', error);
+        throw error;
+      }
     } else {
       const data = await fs.readFile(dbPath, 'utf8');
       const jsonData = JSON.parse(data);
