@@ -1,13 +1,11 @@
 <div align="center">
 
-# IPA Web Tool (Rust Edition)
+# IPA Web Tool
 
-**基于 Rust 的高性能 IPA 文件下载与管理工具**
+**现代化的 IPA 文件下载与管理工具**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
-[![Rust](https://img.shields.io/badge/Rust-1.83-orange.svg)](https://www.rust-lang.org)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
-[![Actix-web](https://img.shields.io/badge/Actix--web-4.4-blue.svg)](https://actix.rs/)
 
 </div>
 
@@ -19,7 +17,7 @@
 - 📥 **下载功能** - 直链下载，进度显示，队列管理
 - 🔐 **安全存储** - 本地 SQLite 数据库，密钥自动轮换
 - 🎨 **现代界面** - Vue 3 + Element Plus，响应式设计，暗黑模式支持
-- ⚡ **高性能后端** - Rust + Actix-web，异步处理，内存安全
+- ⚡ **高性能后端** - 异步处理，内存安全
 
 ## 🚀 快速开始
 
@@ -101,10 +99,9 @@ docker-compose up -d
 - Pinia - Vue 状态管理
 
 **后端**:
-- Rust 1.83 - 系统级编程语言
-- Actix-web 4.4 - 高性能 Web 框架
-- Tokio - 异步运行时
-- SQLite (rusqlite) - 嵌入式数据库
+- 高性能 Web 框架
+- 异步运行时
+- SQLite - 嵌入式数据库
 - OpenSSL - 加密库支持
 
 **安全**:
@@ -180,7 +177,7 @@ pnpm run dev
 - ✅ 下载历史记录与进度追踪
 
 ### 技术实现
-- ✅ Rust + Actix-web 高性能后端
+- ✅ 高性能后端架构
 - ✅ Vue 3 + Element Plus 现代化前端
 - ✅ SQLite 本地数据持久化
 - ✅ 响应式设计 + 暗黑模式支持
@@ -222,7 +219,7 @@ pnpm run dev                  # 启动开发服务器
 pnpm run build                # 构建生产版本
 pnpm run preview              # 预览构建结果
 
-# 后端开发（Rust）
+# 后端开发
 cargo build --release         # 构建发布版本
 cargo run                     # 运行开发版本
 cargo test                    # 运行测试
@@ -272,7 +269,7 @@ MIT License
 - [ipatool.js](https://github.com/feross/ipatool) - 核心功能参考
 - [Element Plus](https://element-plus.org/) - 优秀的 Vue 3 UI 组件库
 - [Vue.js](https://vuejs.org/) - 渐进式 JavaScript 框架
-- [Actix-web](https://actix.rs/) - 强大的 Rust Web 框架
+- [Actix-web](https://actix.rs/) - 强大的 Web 框架
 - [Tailwind CSS](https://tailwindcss.com/) - 实用优先的 CSS 框架
 
 ## 📮 联系方式
@@ -288,6 +285,6 @@ MIT License
 
 Made with ❤️ by [ruanrrn](https://github.com/ruanrrn)
 
-**Built with Rust + Vue 3**
+**Built with Vue 3**
 
 </div>
