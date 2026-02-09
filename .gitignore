@@ -11,9 +11,18 @@ pnpm-debug.log*
 .env.*.local
 
 # Server config files (sensitive data)
-server/data
+server/target/
+server/data/
+server/Cargo.lock
 server/config/credentials.json
 server/config/accounts.json
+
+# Rust
+**/*.rs.bk
+*.pdb
+*.so
+*.dylib
+*.dll
 
 # Editor directories and files
 .vscode/*
@@ -33,3 +42,16 @@ build/
 
 # OS files
 Thumbs.db
+.DS_Store
+
+# Docker
+.dockerignore
+
+# Test coverage
+coverage/
+*.lcov
+
+# Temporary files
+*.tmp
+*.temp
+.cache/

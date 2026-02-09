@@ -1,12 +1,52 @@
+# Dependencies
 node_modules
-dist
-.git
-.gitignore
-README.md
+npm-debug.log
+yarn-error.log
+pnpm-debug.log
+
+# Environment
 .env
 .env.local
 .env.*.local
-server/data/*.db
-server/data/*.json
-*.log
+
+# Git
+.git
+.gitignore
+.github
+
+# Documentation
+*.md
+!README.md
+
+# Tests
+tests
+*.test.ts
+*.spec.ts
+
+# Build outputs
+dist
+build
+
+# Editor
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Rust
+server/target
+server/**/*.rs.bk
+server/Cargo.lock
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+.cache
