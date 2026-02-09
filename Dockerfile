@@ -69,8 +69,9 @@ COPY --from=frontend-builder /app/dist ./dist
 # 从 backend-builder 阶段复制构建好的后端二进制文件
 COPY --from=backend-builder /app/target/release/server ./server
 
-# 创建数据目录
-RUN mkdir -p /app/data
+# 创建数据目录并设置权限
+RUN mkdir -p /app/data && \
+    chmod 777 /app/data
 
 # 暴露端口
 EXPOSE 8080
@@ -86,18 +87,6 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 
 # 运行应用
 CMD ["./server"]
-COPY --from=builder /app/server ./server
-
-# 创建数据目录并设置权限
-# 注意：这个目录会被 docker-compose.yml 中的 volumes 覆盖
-RUN mkdir -p /app/server/data && \
-    chmod 777 /app/server/data && \
-    ls -la /app/server/
-
-# 暴露端口
-EXPOSE 8080
-
-# 设置环境变量
 ENV NODE_ENV=production \
     PORT=8080
 
