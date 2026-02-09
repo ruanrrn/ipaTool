@@ -85,7 +85,7 @@ try {
     )
   `);
 
-  // 验证 encryption_keys 表结构
+  // 验证 encryption_keys 表结构并清理损坏的数据
   try {
     const keyTableInfo = sqliteDb.prepare("PRAGMA table_info(encryption_keys)").all();
     console.log('📋 encryption_keys 表结构:', keyTableInfo.map(col => ({ name: col.name, type: col.type, notnull: col.notnull })));
@@ -98,6 +98,12 @@ try {
     if (missingColumns.length > 0) {
       console.error('❌ encryption_keys 表缺少必需的列:', missingColumns);
       throw new Error(`Missing required columns: ${missingColumns.join(', ')}`);
+    }
+
+    // 清理可能的损坏数据（key_id 为 NULL 的记录）
+    const cleanupResult = sqliteDb.prepare('DELETE FROM encryption_keys WHERE key_id IS NULL').run();
+    if (cleanupResult.changes > 0) {
+      console.log(`🧹 清理了 ${cleanupResult.changes} 条损坏的加密密钥记录`);
     }
   } catch (error) {
     console.error('❌ 验证表结构失败:', error);
@@ -552,6 +558,28 @@ const database = {
       
       jsonData.encryption_keys.push(keyData);
       await fs.writeFile(dbPath, JSON.stringify(jsonData, null, 2));
+    }
+  },
+
+  // 重置加密密钥表（用于修复损坏的数据库）
+  async resetEncryptionKeys() {
+    console.log('🔄 重置加密密钥表...');
+    
+    if (useSqlite && db) {
+      try {
+        // 删除所有密钥
+        db.exec('DELETE FROM encryption_keys');
+        console.log('✅ 加密密钥表已清空');
+      } catch (error) {
+        console.error('❌ 重置加密密钥表失败:', error);
+        throw error;
+      }
+    } else {
+      const data = await fs.readFile(dbPath, 'utf8');
+      const jsonData = JSON.parse(data);
+      jsonData.encryption_keys = [];
+      await fs.writeFile(dbPath, JSON.stringify(jsonData, null, 2));
+      console.log('✅ 加密密钥已清空');
     }
   }
 };

@@ -1,8 +1,6 @@
-version: '3.8'
-
 services:
   ipa-webtool:
-    build: .
+    image: heard/ipa-webtool:latest
     container_name: ipa-webtool
     ports:
       - "3030:8080"
@@ -18,3 +16,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

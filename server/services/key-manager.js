@@ -24,29 +24,49 @@ class KeyManager {
    * - 如果没有找到，生成初始密钥
    */
   async init() {
-    // 尝试从数据库加载现有密钥
-    const currentKeyRecord = await db.getCurrentEncryptionKey();
-    
-    if (currentKeyRecord) {
-      this.currentKey = currentKeyRecord.key_value;
-      this.currentKeyId = currentKeyRecord.key_id;
-      this.lastRotation = currentKeyRecord.last_rotation;
-      this.nextRotation = currentKeyRecord.next_rotation;
+    try {
+      // 尝试从数据库加载现有密钥
+      const currentKeyRecord = await db.getCurrentEncryptionKey();
       
-      // 加载所有以前的密钥
-      const allKeys = await db.getAllEncryptionKeys();
-      allKeys.forEach(keyRecord => {
-        if (!keyRecord.is_current) {
-          this.previousKeys.set(keyRecord.key_id, keyRecord.key_value);
+      if (currentKeyRecord) {
+        this.currentKey = currentKeyRecord.key_value;
+        this.currentKeyId = currentKeyRecord.key_id;
+        this.lastRotation = currentKeyRecord.last_rotation;
+        this.nextRotation = currentKeyRecord.next_rotation;
+        
+        // 加载所有以前的密钥
+        const allKeys = await db.getAllEncryptionKeys();
+        allKeys.forEach(keyRecord => {
+          if (!keyRecord.is_current) {
+            this.previousKeys.set(keyRecord.key_id, keyRecord.key_value);
+          }
+        });
+        
+        console.log(`✅ 已加载加密密钥 (ID: ${this.currentKeyId})`);
+        console.log(`📅 上次轮换: ${new Date(this.lastRotation).toLocaleString()}`);
+        console.log(`⏰ 下次轮换: ${new Date(this.nextRotation).toLocaleString()}`);
+      } else {
+        // 生成初始密钥
+        console.log('🔐 未找到现有密钥，正在生成初始密钥...');
+        await this.rotateKey();
+      }
+    } catch (error) {
+      console.error('❌ 密钥管理器初始化失败:', error.message);
+      
+      // 如果是数据库约束错误，尝试重置数据库
+      if (error.code === 'SQLITE_CONSTRAINT_NOTNULL' || error.code === 'SQLITE_CONSTRAINT') {
+        console.log('🔄 检测到数据库损坏，尝试重置...');
+        try {
+          await db.resetEncryptionKeys();
+          console.log('✅ 数据库已重置，重新生成密钥...');
+          await this.rotateKey();
+        } catch (resetError) {
+          console.error('❌ 数据库重置失败:', resetError);
+          throw resetError;
         }
-      });
-      
-      console.log(`✅ 已加载加密密钥 (ID: ${this.currentKeyId})`);
-      console.log(`📅 上次轮换: ${new Date(this.lastRotation).toLocaleString()}`);
-      console.log(`⏰ 下次轮换: ${new Date(this.nextRotation).toLocaleString()}`);
-    } else {
-      // 生成初始密钥
-      await this.rotateKey();
+      } else {
+        throw error;
+      }
     }
   }
 
