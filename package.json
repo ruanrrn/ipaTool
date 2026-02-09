@@ -7,9 +7,12 @@
     "dev": "vite",
     "dev:server": "PORT=8080 node server/index.js",
     "dev:all": "pnpm run dev:server & pnpm run dev",
+    "dev:rust": "./dev-rust.sh",
     "build": "vite build",
+    "build:rust": "./build-rust.sh",
     "preview": "vite preview",
-    "start": "node server/index.js"
+    "start": "node server/index.js",
+    "start:rust": "cd backend-rust && cargo run --release"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",
