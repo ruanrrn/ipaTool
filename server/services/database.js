@@ -82,6 +82,46 @@ try {
     )
   `);
 
+  // 创建download_records表
+  sqliteDb.exec(`
+    CREATE TABLE IF NOT EXISTS download_records (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      app_name TEXT NOT NULL,
+      app_id TEXT NOT NULL,
+      bundle_id TEXT,
+      version TEXT,
+      account_email TEXT NOT NULL,
+      account_region TEXT,
+      download_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+      status TEXT DEFAULT 'completed',
+      file_size INTEGER,
+      install_url TEXT,
+      artwork_url TEXT,
+      artist_name TEXT,
+      progress INTEGER DEFAULT 0,
+      error TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // 检查并添加progress和error字段（用于升级旧数据库）
+  try {
+    const columns = sqliteDb.prepare("PRAGMA table_info(download_records)").all();
+    const hasProgress = columns.some(col => col.name === 'progress');
+    const hasError = columns.some(col => col.name === 'error');
+    
+    if (!hasProgress) {
+      sqliteDb.exec('ALTER TABLE download_records ADD COLUMN progress INTEGER DEFAULT 0');
+      console.log('Added progress column to download_records table');
+    }
+    if (!hasError) {
+      sqliteDb.exec('ALTER TABLE download_records ADD COLUMN error TEXT');
+      console.log('Added error column to download_records table');
+    }
+  } catch (error) {
+    console.log('Note: Could not add progress/error columns (may already exist):', error.message);
+  }
+
   db = sqliteDb;
   console.log('Better-SQLite3 database initialized successfully');
 } catch (error) {
@@ -245,6 +285,18 @@ const database = {
     }
   },
 
+  // 获取单个凭证
+  async getCredentials(email) {
+    if (useSqlite && db) {
+      const result = db.prepare('SELECT * FROM credentials WHERE email = ?').get(email);
+      return result;
+    } else {
+      const data = await fs.readFile(dbPath, 'utf8');
+      const jsonData = JSON.parse(data);
+      return (jsonData.credentials || []).find(cred => cred.email === email);
+    }
+  },
+
   // 保存加密密钥
   async saveEncryptionKey(keyId, keyValue, isCurrent, lastRotation, nextRotation) {
     if (useSqlite && db) {
@@ -299,8 +351,115 @@ const database = {
     } else {
       const data = await fs.readFile(dbPath, 'utf8');
       const jsonData = JSON.parse(data);
+      return (jsonData.encryption_keys || []).find(k => k.is_current);
+    }
+  },
+
+  // ========== 下载记录相关操作 ==========
+
+  // 添加下载记录
+  async addDownloadRecord(record) {
+    if (useSqlite && db) {
+      const stmt = db.prepare(`
+        INSERT INTO download_records 
+        (app_name, app_id, bundle_id, version, account_email, account_region, status, file_size, install_url, artwork_url, artist_name)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      const result = stmt.run(
+        record.app_name,
+        record.app_id,
+        record.bundle_id || '',
+        record.version || '',
+        record.account_email,
+        record.account_region || 'US',
+        record.status || 'completed',
+        record.file_size || 0,
+        record.install_url || '',
+        record.artwork_url || '',
+        record.artist_name || ''
+      );
+      return { id: result.lastInsertRowid, ...record };
+    } else {
+      const data = await fs.readFile(dbPath, 'utf8');
+      const jsonData = JSON.parse(data);
       
-      return (jsonData.encryption_keys || []).find(k => k.is_current === true);
+      if (!jsonData.download_records) {
+        jsonData.download_records = [];
+      }
+      
+      const newRecord = {
+        id: Date.now(),
+        ...record,
+        download_date: new Date().toISOString()
+      };
+      
+      jsonData.download_records.unshift(newRecord);
+      await fs.writeFile(dbPath, JSON.stringify(jsonData, null, 2));
+      return newRecord;
+    }
+  },
+
+  // 获取所有下载记录
+  async getAllDownloadRecords() {
+    if (useSqlite && db) {
+      return db.prepare('SELECT * FROM download_records ORDER BY download_date DESC').all();
+    } else {
+      const data = await fs.readFile(dbPath, 'utf8');
+      const jsonData = JSON.parse(data);
+      return (jsonData.download_records || []).sort((a, b) => 
+        new Date(b.download_date) - new Date(a.download_date)
+      );
+    }
+  },
+
+  // 删除下载记录
+  async deleteDownloadRecord(id) {
+    if (useSqlite && db) {
+      db.prepare('DELETE FROM download_records WHERE id = ?').run(id);
+    } else {
+      const data = await fs.readFile(dbPath, 'utf8');
+      const jsonData = JSON.parse(data);
+      jsonData.download_records = (jsonData.download_records || []).filter(r => r.id !== id);
+      await fs.writeFile(dbPath, JSON.stringify(jsonData, null, 2));
+    }
+  },
+
+  // 更新下载记录
+  async updateDownloadRecord(id, updates) {
+    if (useSqlite && db) {
+      const fields = [];
+      const values = [];
+
+      for (const [key, value] of Object.entries(updates)) {
+        fields.push(`${key} = ?`);
+        values.push(value);
+      }
+
+      if (fields.length > 0) {
+        values.push(id);
+        db.prepare(`UPDATE download_records SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+      }
+    } else {
+      const data = await fs.readFile(dbPath, 'utf8');
+      const jsonData = JSON.parse(data);
+
+      const index = (jsonData.download_records || []).findIndex(r => r.id === id);
+      if (index >= 0) {
+        jsonData.download_records[index] = { ...jsonData.download_records[index], ...updates };
+        await fs.writeFile(dbPath, JSON.stringify(jsonData, null, 2));
+      }
+    }
+  },
+
+  // 清空所有下载记录
+  async clearAllDownloadRecords() {
+    if (useSqlite && db) {
+      db.prepare('DELETE FROM download_records').run();
+    } else {
+      const data = await fs.readFile(dbPath, 'utf8');
+      const jsonData = JSON.parse(data);
+      jsonData.download_records = [];
+      await fs.writeFile(dbPath, JSON.stringify(jsonData, null, 2));
     }
   },
 
@@ -312,6 +471,53 @@ const database = {
       const data = await fs.readFile(dbPath, 'utf8');
       const jsonData = JSON.parse(data);
       return jsonData.encryption_keys || [];
+    }
+  },
+
+  // 获取当前加密密钥
+  async getCurrentEncryptionKey() {
+    if (useSqlite && db) {
+      return db.prepare('SELECT * FROM encryption_keys WHERE is_current = 1').get();
+    } else {
+      const data = await fs.readFile(dbPath, 'utf8');
+      const jsonData = JSON.parse(data);
+      return (jsonData.encryption_keys || []).find(k => k.is_current === true);
+    }
+  },
+
+  // 保存加密密钥
+  async saveEncryptionKey(keyData) {
+    if (useSqlite && db) {
+      // 如果有新的当前密钥，将旧的设置为非当前
+      if (keyData.is_current) {
+        db.prepare('UPDATE encryption_keys SET is_current = 0').run();
+      }
+      
+      db.prepare(`
+        INSERT INTO encryption_keys (key_id, key_value, is_current, last_rotation, next_rotation)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(
+        keyData.key_id,
+        keyData.key_value,
+        keyData.is_current ? 1 : 0,
+        keyData.last_rotation,
+        keyData.next_rotation
+      );
+    } else {
+      const data = await fs.readFile(dbPath, 'utf8');
+      const jsonData = JSON.parse(data);
+      
+      if (!jsonData.encryption_keys) {
+        jsonData.encryption_keys = [];
+      }
+      
+      // 如果有新的当前密钥，将旧的设置为非当前
+      if (keyData.is_current) {
+        jsonData.encryption_keys.forEach(k => k.is_current = false);
+      }
+      
+      jsonData.encryption_keys.push(keyData);
+      await fs.writeFile(dbPath, JSON.stringify(jsonData, null, 2));
     }
   }
 };
