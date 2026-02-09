@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
 
 env:
-  DOCKER_IMAGE_DEFAULT: heard/ipa-webtool
+  IMAGE_NAME: ipa-webtool
 
 jobs:
   build-and-push:
@@ -38,7 +38,8 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ secrets.DOCKER_USERNAME != '' && format('{0}/ipa-webtool', secrets.DOCKER_USERNAME) || env.DOCKER_IMAGE_DEFAULT }}
+          images: |
+            ${{ secrets.DOCKER_USERNAME != '' && format('{0}/{1}', secrets.DOCKER_USERNAME, env.IMAGE_NAME) || format('heard/{0}', env.IMAGE_NAME) }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
