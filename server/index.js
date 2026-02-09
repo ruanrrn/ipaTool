@@ -17,6 +17,20 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// 静态文件服务 - 生产环境提供前端文件
+if (process.env.NODE_ENV === 'production') {
+  const distPath = path.join(__dirname, '../dist');
+  app.use(express.static(distPath));
+  
+  // SPA 路由支持 - 所有非 API 请求返回 index.html
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) {
+      return next();
+    }
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+}
+
 // 导入路由
 import { loginRouter } from './api/login.js';
 import versionRoutes from './api/versions.js';

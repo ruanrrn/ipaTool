@@ -22,5 +22,9 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     assetsDir: 'assets'
+  },
+  define: {
+    // 生产环境使用相对路径访问 API
+    __VUE_PROD_API_BASE__: JSON.stringify(process.env.NODE_ENV === 'production' ? '' : 'http://localhost:8080')
   }
 })

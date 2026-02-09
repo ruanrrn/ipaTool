@@ -5,8 +5,7 @@ services:
     build: .
     container_name: ipa-webtool
     ports:
-      - "3000:3000"
-      - "8080:8080"
+      - "3030:8080"
     volumes:
       - ./server/data:/app/server/data
     environment:

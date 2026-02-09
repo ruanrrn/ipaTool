@@ -4,6 +4,9 @@ FROM node:18-alpine AS builder
 # 安装 pnpm
 RUN npm install -g pnpm
 
+# 接受构建参数
+ARG NODE_ENV=production
+
 # 设置工作目录
 WORKDIR /app
 
@@ -17,7 +20,7 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 
 # 构建前端
-RUN pnpm run build
+RUN NODE_ENV=production pnpm run build
 
 # 生产环境镜像
 FROM node:18-alpine
@@ -37,6 +40,7 @@ RUN pnpm install --prod --frozen-lockfile
 # 从 builder 阶段复制构建好的前端文件
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/server ./server
+COPY --from=builder /app/node_modules ./node_modules
 
 # 创建数据目录
 RUN mkdir -p /app/server/data
