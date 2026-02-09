@@ -49,6 +49,43 @@ async function postPlistWithRetry(fetchImpl, url, data, headers, retries=3){
   return plist.parse(text || '<plist></plist>');
 }
 
+/**
+ * 从 Apple 认证响应中提取认证信息
+ * Apple API 可能使用不同的字段名，这个函数会尝试所有可能的字段
+ */
+function extractAuthInfo(authResponse) {
+  if (!authResponse) return null;
+  
+  // 尝试所有可能的 dsPersonId 字段名
+  const dsPersonId = authResponse.dsPersonId || 
+                     authResponse.dsPersonID || 
+                     authResponse['ds-person-id'] ||
+                     authResponse.dsid ||
+                     authResponse.personId;
+  
+  // 尝试所有可能的 passwordToken 字段名
+  const passwordToken = authResponse.passwordToken || 
+                       authResponse.passwordTokenInfo ||
+                       authResponse.tokenInfo?.passwordToken ||
+                       authResponse.accountPassword ||
+                       authResponse.authToken;
+  
+  // 其他可能的认证信息
+  const displayName = authResponse.displayName;
+  const email = authResponse.email || authResponse.appleId;
+  
+  const authInfo = { dsPersonId, passwordToken, displayName, email };
+  
+  // 调试：记录提取结果
+  const foundFields = Object.entries(authInfo)
+    .filter(([key, value]) => value != null)
+    .map(([key]) => key);
+  
+  console.log('[extractAuthInfo] Extracted fields:', foundFields.join(', ') || 'none');
+  
+  return authInfo;
+}
+
 class Store{
   static get guid(){ if(!this._guid) this._guid = generateGuid(); return this._guid; }
   static get Headers(){ return { 'User-Agent':'Configurator/2.15 (Macintosh; OS X 11.0.0; 16G29) AppleWebKit/2603.3.8', 'Content-Type':'application/x-www-form-urlencoded' }; }
@@ -56,20 +93,81 @@ class Store{
     const data = { appleId: email, attempt: mfa?2:4, createSession: 'true', guid: this.guid, password: `${password}${mfa??''}`, rmp: 0, why: 'signIn' };
     const url = `https://auth.itunes.apple.com/auth/v1/native/fast?guid=${this.guid}`;
     const parsed = await postPlistWithRetry(this.fetch, url, data, this.Headers, 3);
+    
+    // 调试：记录认证返回的所有字段
+    if (parsed && !parsed.failureType) {
+      console.log('[Store.authenticate] Success - Fields:', {
+        hasDsPersonId: !!parsed.dsPersonId,
+        hasPasswordToken: !!parsed.passwordToken,
+        hasDisplayName: !!parsed.displayName,
+        hasAccountPassword: !!parsed.accountPassword,
+        hasTokenInfo: !!parsed.tokenInfo,\        dsPersonId: parsed.dsPersonId,
+        allKeys: Object.keys(parsed)
+      });
+    }
+    
     return { ...parsed, _state: parsed.hasOwnProperty('failureType') ? 'failure' : 'success' };
   }
   static async ensureLicense(appIdentifier, appVerId, Cookie){
     const url = `https://p25-buy.itunes.apple.com/WebObjects/MZFinance.woa/wa/buyProduct?guid=${this.guid}`;
     const data = { guid: this.guid, salableAdamId: appIdentifier, ...(appVerId && { externalVersionId: appVerId, appExtVrsId: appVerId }), pricingParameters: 'STDQ' };
-    const headers = { ...this.Headers, 'X-Dsid': Cookie.dsPersonId, 'iCloud-DSID': Cookie.dsPersonId, ...(Cookie.passwordToken ? { 'X-Token': Cookie.passwordToken } : {}) };
+    
+    // 使用辅助函数提取认证信息
+    const authInfo = extractAuthInfo(Cookie);
+    
+    // 调试：记录传递的认证信息
+    console.log('[Store.ensureLicense] Cookie info:', {
+      hasDsPersonId: !!authInfo?.dsPersonId,
+      hasPasswordToken: !!authInfo?.passwordToken,
+      dsPersonId: authInfo?.dsPersonId,
+      originalCookieKeys: Cookie ? Object.keys(Cookie) : 'null'
+    });
+    
+    const headers = { 
+      ...this.Headers, 
+      'X-Dsid': authInfo?.dsPersonId, 
+      'iCloud-DSID': authInfo?.dsPersonId, 
+      ...(authInfo?.passwordToken ? { 'X-Token': authInfo.passwordToken } : {}) 
+    };
     return await postPlistWithRetry(this.fetch, url, data, headers, 3);
   }
   static async downloadProduct(appIdentifier, appVerId, Cookie){
     const url = `https://p25-buy.itunes.apple.com/WebObjects/MZFinance.woa/wa/volumeStoreDownloadProduct?guid=${this.guid}`;
     const data = { creditDisplay: '', guid: this.guid, salableAdamId: appIdentifier, ...(appVerId && { externalVersionId: appVerId }) };
-    const headers = { ...this.Headers, 'X-Dsid': Cookie.dsPersonId, 'iCloud-DSID': Cookie.dsPersonId, ...(Cookie.passwordToken ? { 'X-Token': Cookie.passwordToken } : {}) };
+    
+    // 使用辅助函数提取认证信息
+    const authInfo = extractAuthInfo(Cookie);
+    
+    // 调试：记录传递的认证信息
+    console.log('[Store.downloadProduct] Cookie info:', {
+      hasDsPersonId: !!authInfo?.dsPersonId,
+      hasPasswordToken: !!authInfo?.passwordToken,
+      dsPersonId: authInfo?.dsPersonId,
+      originalCookieKeys: Cookie ? Object.keys(Cookie) : 'null'
+    });
+    
+    const headers = { 
+      ...this.Headers, 
+      'X-Dsid': authInfo?.dsPersonId, 
+      'iCloud-DSID': authInfo?.dsPersonId, 
+      ...(authInfo?.passwordToken ? { 'X-Token': authInfo.passwordToken } : {}) 
+    };
     let parsed = await postPlistWithRetry(this.fetch, url, data, headers, 3);
-    if ((parsed?.failureType && /license/i.test(String(parsed.failureType))) || /license/i.test(String(parsed?.customerMessage||''))){
+    
+    // 调试：记录下载结果
+    console.log('[Store.downloadProduct] Result:', {
+      hasFailureType: !!parsed?.failureType,
+      failureType: parsed?.failureType,
+      customerMessage: parsed?.customerMessage,
+      state: parsed?._state,
+      hasSongList: !!parsed?.songList
+    });
+    
+    // 更全面的 license 错误检测
+    const errorMsg = String(parsed?.failureType || parsed?.customerMessage || parsed?.message || '').toLowerCase();
+    const isLicenseError = /license|not found|未购买|未找到|未授权|not purchased/i.test(errorMsg);
+    
+    if (parsed?.failureType && isLicenseError){
       await this.ensureLicense(appIdentifier, appVerId, Cookie);
       parsed = await postPlistWithRetry(this.fetch, url, data, headers, 3);
     }
@@ -87,20 +185,82 @@ class AccountStore{
     const data = { appleId: email, attempt: mfa?2:4, createSession:'true', guid:this.guid, password:`${password}${mfa??''}`, rmp:0, why:'signIn' };
     const url = `https://auth.itunes.apple.com/auth/v1/native/fast?guid=${this.guid}`;
     const parsed = await postPlistWithRetry(this.fetch, url, data, this.Headers, 3);
+    
+    // 调试：记录认证返回的所有字段
+    if (parsed && !parsed.failureType) {
+      console.log('[AccountStore.authenticate] Success - Fields:', {
+        hasDsPersonId: !!parsed.dsPersonId,
+        hasPasswordToken: !!parsed.passwordToken,
+        hasDisplayName: !!parsed.displayName,
+        hasAccountPassword: !!parsed.accountPassword,
+        hasTokenInfo: !!parsed.tokenInfo,
+        dsPersonId: parsed.dsPersonId,
+        allKeys: Object.keys(parsed)
+      });
+    }
+    
     return { ...parsed, _state: parsed.hasOwnProperty('failureType') ? 'failure' : 'success' };
   }
   async ensureLicense(appIdentifier, appVerId, Cookie){
     const url = `https://p25-buy.itunes.apple.com/WebObjects/MZFinance.woa/wa/buyProduct?guid=${this.guid}`;
     const data = { guid:this.guid, salableAdamId:appIdentifier, ...(appVerId && { externalVersionId:appVerId, appExtVrsId:appVerId }), pricingParameters:'STDQ' };
-    const headers = { ...this.Headers, 'X-Dsid': Cookie.dsPersonId, 'iCloud-DSID': Cookie.dsPersonId, ...(Cookie.passwordToken ? { 'X-Token': Cookie.passwordToken } : {}) };
+    
+    // 使用辅助函数提取认证信息
+    const authInfo = extractAuthInfo(Cookie);
+    
+    // 调试：记录传递的认证信息
+    console.log('[AccountStore.ensureLicense] Cookie info:', {
+      hasDsPersonId: !!authInfo?.dsPersonId,
+      hasPasswordToken: !!authInfo?.passwordToken,
+      dsPersonId: authInfo?.dsPersonId,
+      originalCookieKeys: Cookie ? Object.keys(Cookie) : 'null'
+    });
+    
+    const headers = { 
+      ...this.Headers, 
+      'X-Dsid': authInfo?.dsPersonId, 
+      'iCloud-DSID': authInfo?.dsPersonId, 
+      ...(authInfo?.passwordToken ? { 'X-Token': authInfo.passwordToken } : {}) 
+    };
     return await postPlistWithRetry(this.fetch, url, data, headers, 3);
   }
   async downloadProduct(appIdentifier, appVerId, Cookie){
     const url = `https://p25-buy.itunes.apple.com/WebObjects/MZFinance.woa/wa/volumeStoreDownloadProduct?guid=${this.guid}`;
     const data = { creditDisplay:'', guid:this.guid, salableAdamId:appIdentifier, ...(appVerId && { externalVersionId:appVerId }) };
-    const headers = { ...this.Headers, 'X-Dsid': Cookie.dsPersonId, 'iCloud-DSID': Cookie.dsPersonId, ...(Cookie.passwordToken ? { 'X-Token': Cookie.passwordToken } : {}) };
+    
+    // 使用辅助函数提取认证信息
+    const authInfo = extractAuthInfo(Cookie);
+    
+    // 调试：记录传递的认证信息
+    console.log('[AccountStore.downloadProduct] Cookie info:', {
+      hasDsPersonId: !!authInfo?.dsPersonId,
+      hasPasswordToken: !!authInfo?.passwordToken,
+      dsPersonId: authInfo?.dsPersonId,
+      originalCookieKeys: Cookie ? Object.keys(Cookie) : 'null'
+    });
+    
+    const headers = { 
+      ...this.Headers, 
+      'X-Dsid': authInfo?.dsPersonId, 
+      'iCloud-DSID': authInfo?.dsPersonId, 
+      ...(authInfo?.passwordToken ? { 'X-Token': authInfo.passwordToken } : {}) 
+    };
     let parsed = await postPlistWithRetry(this.fetch, url, data, headers, 3);
-    if ((parsed?.failureType && /license/i.test(String(parsed.failureType))) || /license/i.test(String(parsed?.customerMessage||''))){
+    
+    // 调试：记录下载结果
+    console.log('[AccountStore.downloadProduct] Result:', {
+      hasFailureType: !!parsed?.failureType,
+      failureType: parsed?.failureType,
+      customerMessage: parsed?.customerMessage,
+      state: parsed?._state,
+      hasSongList: !!parsed?.songList
+    });
+    
+    // 更全面的 license 错误检测
+    const errorMsg = String(parsed?.failureType || parsed?.customerMessage || parsed?.message || '').toLowerCase();
+    const isLicenseError = /license|not found|未购买|未找到|未授权|not purchased/i.test(errorMsg);
+    
+    if (parsed?.failureType && isLicenseError){
       await this.ensureLicense(appIdentifier, appVerId, Cookie);
       parsed = await postPlistWithRetry(this.fetch, url, data, headers, 3);
     }
