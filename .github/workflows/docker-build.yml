@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
 
 env:
-  DOCKER_IMAGE_DEFAULT: your-dockerhub-username/ipa-webtool
+  DOCKER_IMAGE_DEFAULT: heard/ipa-webtool
 
 jobs:
   build-and-push:
