@@ -101,7 +101,8 @@ class Store{
         hasPasswordToken: !!parsed.passwordToken,
         hasDisplayName: !!parsed.displayName,
         hasAccountPassword: !!parsed.accountPassword,
-        hasTokenInfo: !!parsed.tokenInfo,\        dsPersonId: parsed.dsPersonId,
+        hasTokenInfo: !!parsed.tokenInfo,
+        dsPersonId: parsed.dsPersonId,
         allKeys: Object.keys(parsed)
       });
     }
