@@ -12,10 +12,7 @@ pnpm-debug.log*
 
 # Server config files (sensitive data)
 server/target/
-server/data/
-server/Cargo.lock
-server/config/credentials.json
-server/config/accounts.json
+data/
 
 # Rust
 **/*.rs.bk
