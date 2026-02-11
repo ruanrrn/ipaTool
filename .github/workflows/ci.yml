@@ -54,6 +54,18 @@ jobs:
             echo "Version not changed"
           fi
 
+      - name: Sync version to Cargo.toml
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          VERSION="${{ steps.check.outputs.new_version }}"
+          echo "Syncing version $VERSION to Cargo.toml"
+          sed -i "s/^version = \".*\"/version = \"$VERSION\"/" server/Cargo.toml
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add server/Cargo.toml
+          git commit -m "chore: sync Rust version to $VERSION"
+          git push
+
   test:
     name: Test
     runs-on: ubuntu-latest

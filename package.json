@@ -8,7 +8,11 @@
     "dev:rust": "./dev-rust.sh",
     "build": "vite build",
     "build:rust": "./build-rust.sh",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "version:sync": "./sync-version.sh",
+    "version:patch": "npm version patch && ./sync-version.sh",
+    "version:minor": "npm version minor && ./sync-version.sh",
+    "version:major": "npm version major && ./sync-version.sh"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",

@@ -15,7 +15,7 @@ on:
         type: boolean
   push:
     tags:
-      - 'v*.*.*'
+      - '*.*.*'
   repository_dispatch:
     types: [version-changed]
   pull_request:
@@ -51,6 +51,14 @@ jobs:
         run: |
           echo "=== Cargo.toml Content ==="
           cat server/Cargo.toml
+
+      - name: Sync versions
+        run: |
+          echo "=== Syncing package.json version to Cargo.toml ==="
+          VERSION=$(node -p "require('./package.json').version")
+          echo "Version: $VERSION"
+          sed -i "s/^version = .*/version = \"$VERSION\"/" server/Cargo.toml
+          cat server/Cargo.toml | grep version
 
       - name: Display package.json
         run: |
