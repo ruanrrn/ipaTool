@@ -27,9 +27,15 @@ RUN pnpm run build && \
 # Rust 后端构建阶段
 FROM rust:1.84-slim AS backend-builder
 
-# 更新 Rust 到最新稳定版本（确保支持 edition2024）
-RUN rustup update stable && \
-    rustup default stable
+# 设置环境变量，确保 Cargo 在 PATH 中
+ENV PATH="/root/.cargo/bin:${PATH}"
+ENV CARGO_HOME="/root/.cargo"
+ENV RUSTUP_HOME="/root/.rustup"
+
+# 验证 Rust 工具链
+RUN rustc --version && \
+    cargo --version && \
+    rustup --version
 
 WORKDIR /app
 

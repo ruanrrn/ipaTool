@@ -136,63 +136,6 @@ jobs:
           echo "Please check your version input and try again."
           exit 1
 
-  debug:
-    name: Debug Build
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.run_tests != 'true')
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Display Dockerfile
-        run: |
-          echo "=== Dockerfile Content ==="
-          cat Dockerfile
-
-      - name: Display Cargo.toml
-        run: |
-          echo "=== Cargo.toml Content ==="
-          cat server/Cargo.toml
-
-      - name: Sync versions
-        run: |
-          echo "=== Syncing package.json version to Cargo.toml ==="
-          VERSION=$(node -p "require('./package.json').version")
-          echo "Version: $VERSION"
-          sed -i "s/^version = .*/version = \"$VERSION\"/" server/Cargo.toml
-          cat server/Cargo.toml | grep version
-
-      - name: Display package.json
-        run: |
-          echo "=== package.json Content ==="
-          cat package.json
-
-      - name: Build frontend (debug)
-        run: |
-          echo "=== Building frontend ==="
-          docker run --rm -v "$(pwd)":/app -w /app node:18-alpine sh -c "
-            npm install -g pnpm@8
-            pnpm install --frozen-lockfile || pnpm install
-            pnpm run build
-            ls -la dist/
-          "
-
-      - name: Build backend (debug)
-        run: |
-          echo "=== Building backend ==="
-          docker run --rm -v "$(pwd)":/app -w /app rust:1.83-slim sh -c "
-            apt-get update && apt-get install -y pkg-config libssl-dev
-            cargo build --release --manifest-path=server/Cargo.toml
-            ls -la server/target/release/
-          "
-
-      - name: Test full Docker build (no push)
-        run: |
-          echo "=== Testing full Docker build ==="
-          docker build -t ipatool:debug .
-          docker images ipatool:debug
-
   skip-build:
     name: Skip Build
     runs-on: ubuntu-latest
