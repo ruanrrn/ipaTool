@@ -1,4 +1,4 @@
-# 多阶段构建 Dockerfile
+# 多阶段构建 Dockerfile（优化版）
 # 前端构建阶段
 FROM node:18-alpine AS frontend-builder
 
@@ -8,24 +8,18 @@ RUN npm install -g pnpm@9
 # 设置工作目录
 WORKDIR /app
 
-# 复制 package.json 和 pnpm-lock.yaml
+# 复制依赖文件
 COPY package.json pnpm-lock.yaml ./
 
-# 安装依赖
-RUN pnpm install --frozen-lockfile
+# 安装依赖（使用缓存挂载）
+RUN --mount=type=cache,target=/root/.pnpm-store \
+    pnpm install --frozen-lockfile
 
-# 复制源代码
-COPY src/ ./src/
-COPY index.html ./
-COPY tailwind.config.js ./
-COPY postcss.config.js ./
-COPY vite.config.js ./
+# 一次性复制所有源文件（减少层数）
+COPY src/ index.html tailwind.config.js postcss.config.js vite.config.js ./
 
 # 构建前端
-RUN pnpm run build && \
-    ls -la dist/ && \
-    # 验证构建输出
-    test -f dist/index.html || (echo "Build failed: index.html not found" && exit 1)
+RUN pnpm run build
 
 # Rust 后端构建阶段
 FROM rust:1.84-slim AS backend-builder
@@ -47,12 +41,14 @@ RUN apt-get update && apt-get install -y \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# 复制 Cargo 配置文件到工作目录
-COPY server/Cargo.toml ./
-COPY server/Cargo.lock ./
+# 复制 Cargo 配置文件
+COPY server/Cargo.toml server/Cargo.lock ./
 
-# 创建虚拟源文件以缓存依赖
-RUN mkdir src && \
+# 使用 Cargo 缓存（BuildKit）
+RUN --mount=type=cache,target=/app/target \
+    --mount=type=cache,target=/usr/local/cargo,from=rust:1.84-slim,source=/usr/local/cargo \
+    --mount=type=cache,target=/usr/local/rust,from=rust:1.84-slim,source=/usr/local/rust \
+    mkdir src && \
     echo "fn main() {}" > src/main.rs && \
     echo "#![allow(dead_code)]" > src/lib.rs && \
     cargo build --release && \

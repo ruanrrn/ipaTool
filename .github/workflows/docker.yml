@@ -3,6 +3,11 @@ name: Docker Build
 on:
   workflow_dispatch:
     inputs:
+      version:
+        description: 'Version tag (e.g., v1.0.0)'
+        required: true
+        type: string
+        default: 'v1.0.0'
       push_image:
         description: 'Push image to registry'
         required: false
@@ -38,35 +43,62 @@ env:
   IMAGE_NAME: ipatool
 
 jobs:
-  check-version:
-    name: Check Version
+  validate-version:
+    name: Validate Version
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    if: github.event_name == 'workflow_dispatch'
     outputs:
-      should_build: ${{ steps.check.outputs.should_build }}
-      version: ${{ steps.check.outputs.version }}
+      should_build: ${{ steps.validate.outputs.should_build }}
+      version: ${{ steps.validate.outputs.version }}
+      error_message: ${{ steps.validate.outputs.error_message }}
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Get version from package.json
-        id: check
+      - name: Validate version input
+        id: validate
         run: |
-          # 从 package.json 读取版本号
-          VERSION=$(node -p "require('./package.json').version")
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "Version from package.json: ${VERSION}"
+          # 获取输入的版本号
+          INPUT_VERSION="${{ inputs.version }}"
+          
+          echo "📝 Input version: ${INPUT_VERSION}"
+          
+          # 验证版本号格式（必须以 v 开头）
+          if [[ ! "${INPUT_VERSION}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "❌ Error: Version must start with 'v' and follow semver format (e.g., v1.0.0)"
+            echo "should_build=false" >> $GITHUB_OUTPUT
+            echo "error_message=Invalid version format. Expected format: v1.0.0" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          
+          # 去掉 v 前缀进行比较
+          VERSION_NUMBER="${INPUT_VERSION#v}"
+          
+          # 从 package.json 读取当前版本号
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          echo "📦 Package version: ${PACKAGE_VERSION}"
+          
+          # 比较版本号（输入的版本必须 >= package.json 版本）
+          if ! sort -VC -t '.' -k1,1n -k2,2n -k3,3n <<< "${PACKAGE_VERSION}\n${VERSION_NUMBER}"; then
+            echo "❌ Error: Input version ${VERSION_NUMBER} is less than package version ${PACKAGE_VERSION}"
+            echo "should_build=false" >> $GITHUB_OUTPUT
+            echo "error_message=Version ${VERSION_NUMBER} must be >= ${PACKAGE_VERSION}" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          
+          echo "✅ Version validation passed"
+          echo "version=${VERSION_NUMBER}" >> $GITHUB_OUTPUT
           
           # 如果是强制构建，直接返回 true
           if [ "${{ inputs.force_build }}" == "true" ]; then
-            echo "Force build enabled, will build"
+            echo "⚠️ Force build enabled"
             echo "should_build=true" >> $GITHUB_OUTPUT
             exit 0
           fi
           
           # 检查 Docker Hub 是否已存在该版本
-          echo "Checking if image exists for version ${VERSION}..."
+          echo "🔍 Checking if image exists for version ${VERSION_NUMBER}..."
           
           # 设置镜像名称
           if [ -n "${{ secrets.DOCKER_USERNAME }}" ]; then
@@ -75,16 +107,34 @@ jobs:
             IMAGE="heard/${{ env.IMAGE_NAME }}"
           fi
           
-          echo "Image name: ${IMAGE}:${VERSION}"
+          echo "Image name: ${IMAGE}:${VERSION_NUMBER}"
           
-          # 尝试拉取镜像
-          if docker pull "${IMAGE}:${VERSION}" 2>/dev/null; then
-            echo "Image ${IMAGE}:${VERSION} already exists"
+          # 使用 Docker Hub API V2 检查镜像是否存在
+          RESPONSE=$(curl -s "https://hub.docker.com/v2/repositories/${IMAGE}/tags/${VERSION_NUMBER}")
+          
+          if echo "${RESPONSE}" | grep -q '"id"'; then
+            echo "❌ Image ${IMAGE}:${VERSION_NUMBER} already exists"
             echo "should_build=false" >> $GITHUB_OUTPUT
+            echo "error_message=Image already exists. Use force_build=true to override." >> $GITHUB_OUTPUT
           else
-            echo "Image ${IMAGE}:${VERSION} does not exist, will build"
+            echo "✅ Image ${IMAGE}:${VERSION_NUMBER} does not exist, will build"
             echo "should_build=true" >> $GITHUB_OUTPUT
           fi
+
+  version-error:
+    name: Version Validation Error
+    needs: validate-version
+    if: needs.validate-version.outputs.should_build == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Display error
+        run: |
+          echo "❌ Version Validation Failed"
+          echo ""
+          echo "Error: ${{ needs.validate-version.outputs.error_message }}"
+          echo ""
+          echo "Please check your version input and try again."
+          exit 1
 
   debug:
     name: Debug Build
@@ -146,13 +196,13 @@ jobs:
   skip-build:
     name: Skip Build
     runs-on: ubuntu-latest
-    needs: check-version
-    if: needs.check-version.outputs.should_build == 'false'
+    needs: validate-version
+    if: github.event_name == 'workflow_dispatch' && needs.validate-version.outputs.should_build == 'false'
     
     steps:
       - name: Skip notification
         run: |
-          VERSION="${{ needs.check-version.outputs.version }}"
+          VERSION="${{ needs.validate-version.outputs.version }}"
           echo "==================================="
           echo "Version ${VERSION} already exists"
           echo "Skipping build and push"
@@ -163,10 +213,10 @@ jobs:
   build:
     name: Build and Push
     runs-on: ubuntu-latest
-    needs: check-version
+    needs: validate-version
     if: |
       github.event_name != 'pull_request' && 
-      (github.event_name == 'workflow_dispatch' || needs.check-version.outputs.should_build == 'true')
+      (github.event_name == 'workflow_dispatch' && needs.validate-version.outputs.should_build == 'true')
     permissions:
       contents: read
       packages: write
@@ -179,9 +229,11 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          cache: type=gha  # 启用 GitHub Actions 缓存
 
       - name: Log in to Docker Hub
-        if: github.event_name != 'pull_request' && (github.event_name == 'push' || inputs.push_image == 'true')
+        if: github.event_name == 'workflow_dispatch' && inputs.push_image == 'true'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
@@ -193,31 +245,32 @@ jobs:
         with:
           images: ${{ secrets.DOCKER_USERNAME != '' && format('{0}/{1}', secrets.DOCKER_USERNAME, env.IMAGE_NAME) || format('heard/{0}', env.IMAGE_NAME) }}
           tags: |
-            type=ref,event=branch
-            type=semver,pattern={{version}}
+            type=semver,pattern=${{ needs.validate-version.outputs.version }}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
             type=raw,value=latest,enable={{is_default_branch}}
-            type=sha,prefix={{branch}}-,format=short
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile
-          push: ${{ github.event_name != 'pull_request' && (github.event_name == 'push' || inputs.push_image == 'true') }}
+          push: ${{ inputs.push_image == 'true' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
           provenance: false
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1  # 启用内联缓存
+            VERSION=${{ needs.validate-version.outputs.version }}
 
       - name: Run Trivy vulnerability scanner
-        if: github.event_name != 'pull_request' && (github.event_name == 'push' || inputs.push_image == 'true')
+        if: inputs.push_image == 'true'
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ secrets.DOCKER_USERNAME != '' && format('{0}/{1}', secrets.DOCKER_USERNAME, env.IMAGE_NAME) || format('heard/{0}', env.IMAGE_NAME) }}:latest
+          image-ref: ${{ secrets.DOCKER_USERNAME != '' && format('{0}/{1}', secrets.DOCKER_USERNAME, env.IMAGE_NAME) || format('heard/{0}', env.IMAGE_NAME) }}:${{ needs.validate-version.outputs.version }}
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
