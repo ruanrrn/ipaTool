@@ -45,9 +45,9 @@ RUN apt-get update && apt-get install -y \
 COPY server/Cargo.toml server/Cargo.lock ./
 
 # 使用 Cargo 缓存（BuildKit）
-RUN --mount=type=cache,target=/app/target \
-    --mount=type=cache,target=/usr/local/cargo,from=rust:1.84-slim,source=/usr/local/cargo \
-    --mount=type=cache,target=/usr/local/rust,from=rust:1.84-slim,source=/usr/local/rust \
+RUN --mount=type=cache,target=/app/target,id=cargo_cache \
+    --mount=type=cache,target=/usr/local/cargo,id=registry_cache \
+    --mount=type=cache,target=/usr/local/rust,id=rust_cache \
     mkdir src && \
     echo "fn main() {}" > src/main.rs && \
     echo "#![allow(dead_code)]" > src/lib.rs && \
@@ -57,8 +57,11 @@ RUN --mount=type=cache,target=/app/target \
 # 复制实际源代码
 COPY server/src ./src
 
-# 构建应用
-RUN cargo build --release
+# 构建应用（使用缓存）
+RUN --mount=type=cache,target=/app/target,id=cargo_cache \
+    --mount=type=cache,target=/usr/local/cargo,id=registry_cache \
+    --mount=type=cache,target=/usr/local/rust,id=rust_cache \
+    cargo build --release
 
 # 生产环境镜像
 FROM debian:bookworm-slim
