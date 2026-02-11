@@ -30,6 +30,10 @@ RUN pnpm run build && \
 # Rust 后端构建阶段
 FROM rust:1.84-slim AS backend-builder
 
+# 更新 Rust 到最新稳定版本（确保支持 edition2024）
+RUN rustup update stable && \
+    rustup default stable
+
 WORKDIR /app
 
 # 安装构建依赖
