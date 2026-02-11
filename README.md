@@ -360,7 +360,7 @@ sqlite3 server/data/ipa-webtool.db ".tables"
 - 修改版本号 - 自动触发构建
 - 手动触发 - 可随时手动运行
 
-详细说明请查看 [GITHUB_ACTIONS_GUIDE.md](./GITHUB_ACTIONS_GUIDE.md)
+详细说明请查看 [GITHUB_ACTIONS_GUIDE.md](./docs/GITHUB_ACTIONS_GUIDE.md)
 
 ## 🔐 HTTPS 部署
 
@@ -386,7 +386,7 @@ sqlite3 server/data/ipa-webtool.db ".tables"
    caddy run
    ```
 
-详细配置请查看 [HTTPS_DEPLOYMENT.md](./HTTPS_DEPLOYMENT.md)
+详细配置请查看 [HTTPS_DEPLOYMENT.md](./docs/HTTPS_DEPLOYMENT.md)
 
 ## 📄 许可证
 
