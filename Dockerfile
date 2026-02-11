@@ -3,7 +3,7 @@
 FROM node:18-alpine AS frontend-builder
 
 # 安装 pnpm
-RUN npm install -g pnpm
+RUN npm install -g pnpm@8
 
 # 设置工作目录
 WORKDIR /app
@@ -12,7 +12,7 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
 
 # 安装依赖
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --prefer-offline
 
 # 复制源代码
 COPY src/ ./src/
@@ -22,7 +22,10 @@ COPY postcss.config.js ./
 COPY vite.config.js ./
 
 # 构建前端
-RUN pnpm run build
+RUN pnpm run build && \
+    ls -la dist/ && \
+    # 验证构建输出
+    test -f dist/index.html || (echo "Build failed: index.html not found" && exit 1)
 
 # Rust 后端构建阶段
 FROM rust:1.83-slim AS backend-builder
@@ -35,12 +38,14 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# 复制 Cargo 配置
-COPY server/Cargo.toml server/Cargo.lock ./
+# 复制 Cargo 配置文件到工作目录
+COPY server/Cargo.toml ./
+COPY server/Cargo.lock ./
 
 # 创建虚拟源文件以缓存依赖
 RUN mkdir src && \
     echo "fn main() {}" > src/main.rs && \
+    echo "#![allow(dead_code)]" > src/lib.rs && \
     cargo build --release && \
     rm -rf src
 
