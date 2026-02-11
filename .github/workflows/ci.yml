@@ -40,13 +40,10 @@ jobs:
         run: |
           git checkout HEAD~1 -- package.json 2>/dev/null || echo "no_previous"
           OLD_VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "none")
-          
           git checkout HEAD -- package.json
           NEW_VERSION=$(node -p "require('./package.json').version")
-          
           echo "Old version: $OLD_VERSION"
           echo "New version: $NEW_VERSION"
-          
           if [ "$OLD_VERSION" != "$NEW_VERSION" ] && [ "$OLD_VERSION" != "none" ]; then
             echo "changed=true" >> $GITHUB_OUTPUT
             echo "old_version=$OLD_VERSION" >> $GITHUB_OUTPUT

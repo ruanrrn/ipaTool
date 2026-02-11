@@ -31,6 +31,24 @@ pub struct DownloadResult {
 }
 
 #[derive(Debug, Clone)]
+pub struct DownloadParams<'a, S: AppleAuthService> {
+    pub store: &'a S,
+    pub email: &'a str,
+    pub appid: &'a str,
+    pub app_ver_id: Option<&'a str>,
+    pub download_path: &'a str,
+    pub auto_purchase: bool,
+    pub token: Option<&'a str>,
+}
+
+impl<'a, S: AppleAuthService> DownloadParams<'a, S> {
+    pub fn on_progress(&self, progress: DownloadProgress) {
+        // 默认实现，什么都不做
+        let _ = progress;
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct DownloadMetadata {
     pub bundle_display_name: String,
     pub bundle_short_version_string: String,
@@ -95,7 +113,7 @@ pub fn get_license_error_message(result: &std::collections::HashMap<String, Valu
         }
     }
 
-    if customer_message.chars().any(|c| !c.is_ascii()) {
+    if !customer_message.is_ascii() {
         return customer_message.to_string();
     }
 
@@ -168,16 +186,9 @@ fn get_song_list(app: &std::collections::HashMap<String, Value>) -> Option<&Valu
 }
 
 pub async fn download_ipa_with_account<S: AppleAuthService>(
-    store: &S,
-    email: &str,
-    appid: &str,
-    app_ver_id: Option<&str>,
-    download_path: &str,
-    on_progress: impl Fn(DownloadProgress),
-    auto_purchase: bool,
-    _token: Option<&str>,
+    params: DownloadParams<'_, S>,
 ) -> Result<DownloadResult, Box<dyn std::error::Error + Send + Sync>> {
-    on_progress(DownloadProgress {
+    params.on_progress(DownloadProgress {
         phase: "auth".to_string(),
         message: "[auth] 查询下载信息".to_string(),
         progress: None,
@@ -189,16 +200,16 @@ pub async fn download_ipa_with_account<S: AppleAuthService>(
         ds_person_id: None,
         password_token: None,
         display_name: None,
-        email: Some(email.to_string()),
+        email: Some(params.email.to_string()),
     };
     
-    let mut app = store.download_product(appid, app_ver_id, &auth_info).await?;
+    let mut app = params.store.download_product(params.appid, params.app_ver_id, &auth_info).await?;
 
     let state = get_state(&app);
     if state != Some(&Value::String("success".to_string())) 
         && is_session_error(&app) 
     {
-        on_progress(DownloadProgress {
+        params.on_progress(DownloadProgress {
             phase: "session".to_string(),
             message: "[session] 检测到会话失效，尝试刷新...".to_string(),
             progress: None,
@@ -230,8 +241,8 @@ pub async fn download_ipa_with_account<S: AppleAuthService>(
 
     let current_state = get_state(&app);
     if current_state != Some(&Value::String("success".to_string())) && is_license_error {
-        if auto_purchase {
-            on_progress(DownloadProgress {
+        if params.auto_purchase {
+            params.on_progress(DownloadProgress {
                 phase: "auth".to_string(),
                 message: "[purchase] 正在购买应用...".to_string(),
                 progress: None,
@@ -239,7 +250,7 @@ pub async fn download_ipa_with_account<S: AppleAuthService>(
                 downloaded: None,
             });
 
-            let license_result = store.ensure_license(appid, app_ver_id, &auth_info).await?;
+            let license_result = params.store.ensure_license(params.appid, params.app_ver_id, &auth_info).await?;
             
             if get_state(&license_result) != Some(&Value::String("success".to_string())) {
                 let error_msg = get_license_error_message(&license_result);
@@ -253,7 +264,7 @@ pub async fn download_ipa_with_account<S: AppleAuthService>(
                 });
             }
 
-            on_progress(DownloadProgress {
+            params.on_progress(DownloadProgress {
                 phase: "auth".to_string(),
                 message: "[purchase] 购买成功，重新查询下载信息".to_string(),
                 progress: None,
@@ -261,7 +272,7 @@ pub async fn download_ipa_with_account<S: AppleAuthService>(
                 downloaded: None,
             });
 
-            app = store.download_product(appid, app_ver_id, &auth_info).await?;
+            app = params.store.download_product(params.appid, params.app_ver_id, &auth_info).await?;
 
             if get_state(&app) != Some(&Value::String("success".to_string())) {
                 let error_msg = get_license_error_message(&app);
@@ -319,7 +330,7 @@ pub async fn download_ipa_with_account<S: AppleAuthService>(
         .and_then(|v| v.as_object())
         .ok_or("Invalid metadata")?;
 
-    let download_dir = Path::new(download_path);
+    let download_dir = Path::new(params.download_path);
     fs::create_dir_all(download_dir).await?;
 
     let bundle_display_name = metadata.get("bundleDisplayName")
@@ -348,7 +359,7 @@ pub async fn download_ipa_with_account<S: AppleAuthService>(
         .unwrap_or(0);
     let num_chunks = (file_size as f64 / CHUNK_SIZE as f64).ceil() as usize;
 
-    on_progress(DownloadProgress {
+    params.on_progress(DownloadProgress {
         phase: "download-start".to_string(),
         message: format!("[download] 开始：{:.2}MB，分块={}", file_size as f64 / 1024.0 / 1024.0, num_chunks),
         progress: Some(0.0),
@@ -365,16 +376,14 @@ pub async fn download_ipa_with_account<S: AppleAuthService>(
         let temp_output = cache_dir.join(format!("part{}", i));
         let url = file_url.to_string();
 
-        if let Err(e) = download_chunk(&url, start, end, &temp_output).await {
-            return Err(e);
-        }
+        download_chunk(&url, start, end, &temp_output).await?;
 
         progress[i] = std::cmp::min(CHUNK_SIZE as u64, file_size - (i * CHUNK_SIZE) as u64);
         downloaded = progress.iter().sum();
         
         let percent = ((downloaded as f64 / file_size as f64) * 100.0).min(100.0) as u32;
 
-        on_progress(DownloadProgress {
+        params.on_progress(DownloadProgress {
             phase: "download-progress".to_string(),
             message: format!(
                 "[download] 进度 {:.2}MB / {:.2}MB",
@@ -387,7 +396,7 @@ pub async fn download_ipa_with_account<S: AppleAuthService>(
         });
     }
 
-    on_progress(DownloadProgress {
+    params.on_progress(DownloadProgress {
         phase: "merge".to_string(),
         message: "[merge] 合并分块...".to_string(),
         progress: None,
@@ -411,7 +420,7 @@ pub async fn download_ipa_with_account<S: AppleAuthService>(
         fs::remove_file(&temp_output).await?;
     }
 
-    on_progress(DownloadProgress {
+    params.on_progress(DownloadProgress {
         phase: "sign".to_string(),
         message: "[sign] 写入签名...".to_string(),
         progress: None,
@@ -419,7 +428,7 @@ pub async fn download_ipa_with_account<S: AppleAuthService>(
         downloaded: None,
     });
 
-    let mut sig_client = SignatureClient::new(song_list_value, email)?;
+    let mut sig_client = SignatureClient::new(song_list_value, params.email)?;
     sig_client.load_file(&output_file_path.to_string_lossy())?;
     sig_client.append_metadata();
     sig_client.append_signature()?;
@@ -441,7 +450,7 @@ pub async fn download_ipa_with_account<S: AppleAuthService>(
             .to_string(),
     };
 
-    on_progress(DownloadProgress {
+    params.on_progress(DownloadProgress {
         phase: "done".to_string(),
         message: format!("[done] 产物：{}", output_file_path.to_string_lossy()),
         progress: Some(100.0),

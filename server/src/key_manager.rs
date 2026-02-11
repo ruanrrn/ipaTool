@@ -38,7 +38,7 @@ impl KeyManager {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_millis() as i64;
-        format!("key-{:x}-{}", timestamp, hex::encode(&rand::thread_rng().gen::<[u8; 4]>()))
+        format!("key-{:x}-{}", timestamp, hex::encode(rand::thread_rng().gen::<[u8; 4]>()))
     }
 
     pub fn needs_rotation(&self) -> bool {
@@ -114,8 +114,8 @@ impl KeyManager {
     pub fn get_key_info(&self) -> KeyInfo {
         let current_key_id = self.current_key_id.lock().unwrap().clone();
         let current_key = self.current_key.lock().unwrap().clone();
-        let last_rotation = self.last_rotation.lock().unwrap().clone();
-        let next_rotation = self.next_rotation.lock().unwrap().clone();
+        let last_rotation = *self.last_rotation.lock().unwrap();
+        let next_rotation = *self.next_rotation.lock().unwrap();
 
         KeyInfo {
             key_id: current_key_id.unwrap_or_default(),

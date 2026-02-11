@@ -103,15 +103,9 @@ async fn get_versions(
     
     let response1 = client.get(&url1).send().await;
     let versions = if let Ok(resp) = response1 {
-        if let Ok(json) = resp.json::<serde_json::Value>().await {
-            if let Some(data) = json.get("data").and_then(|d| d.as_array()) {
-                Some(data.clone())
-            } else {
-                None
-            }
-        } else {
-            None
-        }
+        resp.json::<serde_json::Value>().await.ok().and_then(|json| {
+            json.get("data").and_then(|d| d.as_array()).cloned()
+        })
     } else {
         None
     };
@@ -266,7 +260,7 @@ async fn download_ipa(
     
     // 创建下载目录
     let download_dir = "../downloads";
-    if let Err(_) = tokio::fs::create_dir_all(download_dir).await {
+    if tokio::fs::create_dir_all(download_dir).await.is_err() {
         return HttpResponse::InternalServerError().json(ApiResponse::<String>::error("创建下载目录失败".to_string()));
     }
     
