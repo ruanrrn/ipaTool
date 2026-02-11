@@ -1,4 +1,4 @@
-# 多阶段构建 Dockerfile（优化版）
+# 多阶段构建 Dockerfile（完全修复版）
 # 前端构建阶段
 FROM node:18-alpine AS frontend-builder
 
@@ -13,10 +13,9 @@ COPY package.json pnpm-lock.yaml ./
 
 # 安装依赖（使用缓存挂载）
 RUN --mount=type=cache,target=/root/.pnpm-store,id=pnpm_cache \
-    pnpm install --frozen-lockfile && \
-    pnpm check || echo "Warning: Some dependencies may be missing"
+    pnpm install --frozen-lockfile
 
-# 复制所有源文件（包括 index.html）
+# 复制所有源文件
 COPY . .
 
 # 构建前端（显示详细输出）
@@ -32,10 +31,10 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 ENV CARGO_HOME="/root/.cargo"
 ENV RUSTUP_HOME="/root/.rustup"
 
-# 验证 Rust 工具链
-RUN rustc --version && \
-    cargo --version && \
-    rustup --version
+# 设置默认工具链并验证
+RUN rustup default stable && \
+    rustc --version && \
+    cargo --version
 
 WORKDIR /app
 
