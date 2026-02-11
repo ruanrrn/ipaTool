@@ -1,0 +1,13 @@
+# Rustfmt 配置文件
+# 确保本地和 CI 环境的代码格式一致
+
+edition = "2021"
+hard_tabs = false
+tab_spaces = 4
+max_width = 100
+use_small_heuristics = "Default"
+reorder_imports = true
+reorder_modules = true
+remove_nested_parens = true
+use_field_init_shorthand = true
+use_try_shorthand = true
