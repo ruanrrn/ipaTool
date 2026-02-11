@@ -3,7 +3,7 @@
 FROM node:18-alpine AS frontend-builder
 
 # 安装 pnpm
-RUN npm install -g pnpm@9
+RUN npm install -g pnpm@8
 
 # 设置工作目录
 WORKDIR /app
@@ -12,7 +12,7 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
 
 # 安装依赖
-RUN pnpm install --frozen-lockfile --prefer-offline
+RUN pnpm install --frozen-lockfile
 
 # 复制源代码
 COPY src/ ./src/
@@ -92,19 +92,3 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 
 # 运行应用
 CMD ["./server"]
-ENV NODE_ENV=production \
-    PORT=8080
-
-# 添加一个非 root 用户来运行应用（可选，提高安全性）
-# RUN addgroup -g 1001 -S nodejs && \
-#     adduser -S nodejs -u 1001 && \
-#     chown -R nodejs:nodejs /app/server/data
-
-# USER nodejs
-
-# 健康检查
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:8080/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})" || exit 1
-
-# 启动命令
-CMD ["node", "server/index.js"]

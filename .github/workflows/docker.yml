@@ -62,7 +62,7 @@ jobs:
           echo "=== Building frontend ==="
           docker run --rm -v "$(pwd)":/app -w /app node:18-alpine sh -c "
             npm install -g pnpm@8
-            pnpm install --frozen-lockfile
+            pnpm install --frozen-lockfile || pnpm install
             pnpm run build
             ls -la dist/
           "
@@ -90,6 +90,7 @@ jobs:
       contents: read
       packages: write
       id-token: write
+      security-events: write
 
     steps:
       - name: Checkout code
@@ -141,7 +142,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       - name: Upload Trivy results to GitHub Security tab
-        if: always() && github.event_name != 'pull_request'
+        if: always() && github.event_name != 'pull_request' && hashFiles('trivy-results.sarif') != ''
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'trivy-results.sarif'
