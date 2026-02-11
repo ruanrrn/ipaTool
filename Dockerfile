@@ -3,7 +3,7 @@
 FROM node:18-alpine AS frontend-builder
 
 # 安装 pnpm
-RUN npm install -g pnpm@8
+RUN npm install -g pnpm@9
 
 # 设置工作目录
 WORKDIR /app
@@ -28,7 +28,7 @@ RUN pnpm run build && \
     test -f dist/index.html || (echo "Build failed: index.html not found" && exit 1)
 
 # Rust 后端构建阶段
-FROM rust:1.83-slim AS backend-builder
+FROM rust:1.84-slim AS backend-builder
 
 WORKDIR /app
 
