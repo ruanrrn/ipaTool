@@ -26,15 +26,8 @@ RUN pnpm run build && \
 # Rust 后端构建阶段
 FROM rust:1.84-slim AS backend-builder
 
-# 设置环境变量，确保 Cargo 在 PATH 中
-ENV PATH="/root/.cargo/bin:${PATH}"
-ENV CARGO_HOME="/root/.cargo"
-ENV RUSTUP_HOME="/root/.rustup"
-
-# 设置默认工具链并验证
-RUN rustup default stable && \
-    rustc --version && \
-    cargo --version
+# rust:1.84-slim 镜像中 Cargo 已经在 /usr/local/cargo/bin
+# 不需要设置额外的环境变量
 
 WORKDIR /app
 
@@ -49,13 +42,15 @@ RUN apt-get update && apt-get install -y \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
+# 验证 Rust 工具链
+RUN rustc --version && cargo --version
+
 # 复制 Cargo 配置文件
 COPY server/Cargo.toml server/Cargo.lock ./
 
 # 使用 Cargo 缓存（BuildKit）- 预构建依赖
+# 注意：不要缓存 /usr/local/cargo，因为 Cargo 已经在那里了
 RUN --mount=type=cache,target=/app/target,id=cargo_cache,sharing=locked \
-    --mount=type=cache,target=/usr/local/cargo,id=registry_cache,sharing=locked \
-    --mount=type=cache,target=/usr/local/rust,id=rust_cache,sharing=locked \
     mkdir src && \
     echo "fn main() {}" > src/main.rs && \
     echo "#![allow(dead_code)]" > src/lib.rs && \
@@ -68,8 +63,6 @@ COPY server/src ./src
 
 # 构建应用（使用缓存）- 只构建 release 版本
 RUN --mount=type=cache,target=/app/target,id=cargo_cache,sharing=locked \
-    --mount=type=cache,target=/usr/local/cargo,id=registry_cache,sharing=locked \
-    --mount=type=cache,target=/usr/local/rust,id=rust_cache,sharing=locked \
     cargo build --release && \
     ls -lh target/release/server && \
     echo "Backend build completed successfully"
