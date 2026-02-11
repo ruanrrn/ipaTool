@@ -3,7 +3,7 @@
 FROM node:18-alpine AS frontend-builder
 
 # 安装 pnpm
-RUN npm install -g pnpm@8
+RUN npm install -g pnpm@11
 
 # 设置工作目录
 WORKDIR /app
