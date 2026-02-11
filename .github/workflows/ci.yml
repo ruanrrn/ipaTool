@@ -6,13 +6,13 @@ on:
   # Pull Request时触发（仅测试，不构建）
   pull_request:
     branches: [ main, master ]
-  # 版本标签触发
+  # 推送触发（版本标签或版本文件变更）
   push:
     tags:
-      - 'v*.*.*'
-  # 检测版本号变更
-  push:
-    branches: [ main, master ]
+      - '*.*.*'
+    branches:
+      - main
+      - master
     paths:
       - 'package.json'
       - 'server/Cargo.toml'
