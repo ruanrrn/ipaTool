@@ -1,11 +1,11 @@
-use std::path::Path;
-use tokio::fs::{self};
-use tokio::io::{AsyncWriteExt, AsyncReadExt};
-use reqwest;
-use std::time::Duration;
-use crate::apple_auth::{Store, AccountStore, AuthInfo};
+use crate::apple_auth::{AccountStore, AuthInfo, Store};
 use crate::signature::SignatureClient;
+use reqwest;
 use serde_json::Value;
+use std::path::Path;
+use std::time::Duration;
+use tokio::fs::{self};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 const CHUNK_SIZE: usize = 5 * 1024 * 1024;
 const MAX_RETRIES: usize = 5;
@@ -57,7 +57,10 @@ pub struct DownloadMetadata {
     pub artist_name: String,
 }
 
-fn get_value_from_map<'a>(map: &'a std::collections::HashMap<String, Value>, key: &str) -> Option<&'a Value> {
+fn get_value_from_map<'a>(
+    map: &'a std::collections::HashMap<String, Value>,
+    key: &str,
+) -> Option<&'a Value> {
     map.get(key)
 }
 
@@ -71,7 +74,7 @@ fn is_session_error(result: &std::collections::HashMap<String, Value>) -> bool {
 
     let session_error_patterns = [
         "session expired",
-        "session invalid", 
+        "session invalid",
         "invalid session",
         "unauthorized",
         "authentication failed",
@@ -80,14 +83,16 @@ fn is_session_error(result: &std::collections::HashMap<String, Value>) -> bool {
         "not authenticated",
     ];
 
-    session_error_patterns.iter().any(|pattern| error_msg.contains(pattern))
+    session_error_patterns
+        .iter()
+        .any(|pattern| error_msg.contains(pattern))
 }
 
 pub fn get_license_error_message(result: &std::collections::HashMap<String, Value>) -> String {
     let customer_message = get_value_from_map(result, "customerMessage")
         .and_then(|v: &Value| v.as_str())
         .unwrap_or("");
-    
+
     let failure_type = get_value_from_map(result, "failureType")
         .and_then(|v: &Value| v.as_str())
         .unwrap_or("");
@@ -127,7 +132,7 @@ async fn download_chunk(
     output: &Path,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let client = reqwest::Client::new();
-    
+
     for attempt in 0..MAX_RETRIES {
         let response = client
             .get(url)
@@ -202,13 +207,14 @@ pub async fn download_ipa_with_account<S: AppleAuthService>(
         display_name: None,
         email: Some(params.email.to_string()),
     };
-    
-    let mut app = params.store.download_product(params.appid, params.app_ver_id, &auth_info).await?;
+
+    let mut app = params
+        .store
+        .download_product(params.appid, params.app_ver_id, &auth_info)
+        .await?;
 
     let state = get_state(&app);
-    if state != Some(&Value::String("success".to_string())) 
-        && is_session_error(&app) 
-    {
+    if state != Some(&Value::String("success".to_string())) && is_session_error(&app) {
         params.on_progress(DownloadProgress {
             phase: "session".to_string(),
             message: "[session] 检测到会话失效，尝试刷新...".to_string(),
@@ -234,8 +240,8 @@ pub async fn download_ipa_with_account<S: AppleAuthService>(
         .unwrap_or("")
         .to_lowercase();
 
-    let is_license_error = error_msg.contains("license") 
-        || error_msg.contains("not found") 
+    let is_license_error = error_msg.contains("license")
+        || error_msg.contains("not found")
         || error_msg.contains("未购买")
         || error_msg.contains("未授权");
 
@@ -250,8 +256,11 @@ pub async fn download_ipa_with_account<S: AppleAuthService>(
                 downloaded: None,
             });
 
-            let license_result = params.store.ensure_license(params.appid, params.app_ver_id, &auth_info).await?;
-            
+            let license_result = params
+                .store
+                .ensure_license(params.appid, params.app_ver_id, &auth_info)
+                .await?;
+
             if get_state(&license_result) != Some(&Value::String("success".to_string())) {
                 let error_msg = get_license_error_message(&license_result);
                 return Ok(DownloadResult {
@@ -272,7 +281,10 @@ pub async fn download_ipa_with_account<S: AppleAuthService>(
                 downloaded: None,
             });
 
-            app = params.store.download_product(params.appid, params.app_ver_id, &auth_info).await?;
+            app = params
+                .store
+                .download_product(params.appid, params.app_ver_id, &auth_info)
+                .await?;
 
             if get_state(&app) != Some(&Value::String("success".to_string())) {
                 let error_msg = get_license_error_message(&app);
@@ -303,7 +315,7 @@ pub async fn download_ipa_with_account<S: AppleAuthService>(
             .and_then(|v: &Value| v.as_str())
             .unwrap_or("下载失败")
             .to_string();
-        
+
         return Ok(DownloadResult {
             ok: false,
             file: None,
@@ -319,49 +331,57 @@ pub async fn download_ipa_with_account<S: AppleAuthService>(
         .and_then(|v| v.first())
         .ok_or("Invalid song list")?;
 
-    let song_list = song_list_value.as_object()
+    let song_list = song_list_value
+        .as_object()
         .ok_or("Invalid song list format")?;
 
-    let file_url = song_list.get("URL")
+    let file_url = song_list
+        .get("URL")
         .and_then(|v| v.as_str())
         .ok_or("Invalid file URL")?;
 
-    let metadata = song_list.get("metadata")
+    let metadata = song_list
+        .get("metadata")
         .and_then(|v| v.as_object())
         .ok_or("Invalid metadata")?;
 
     let download_dir = Path::new(params.download_path);
     fs::create_dir_all(download_dir).await?;
 
-    let bundle_display_name = metadata.get("bundleDisplayName")
+    let bundle_display_name = metadata
+        .get("bundleDisplayName")
         .and_then(|v| v.as_str())
         .unwrap_or("Unknown");
 
-    let bundle_short_version = metadata.get("bundleShortVersionString")
+    let bundle_short_version = metadata
+        .get("bundleShortVersionString")
         .and_then(|v| v.as_str())
         .unwrap_or("1.0");
 
-    let output_file_path = download_dir.join(format!("{}_{}.ipa", bundle_display_name, bundle_short_version));
+    let output_file_path = download_dir.join(format!(
+        "{}_{}.ipa",
+        bundle_display_name, bundle_short_version
+    ));
     let cache_dir = download_dir.join("cache");
     fs::create_dir_all(&cache_dir).await?;
     clear_cache(&cache_dir).await?;
 
-    let response = reqwest::Client::new()
-        .get(file_url)
-        .send()
-        .await?;
+    let response = reqwest::Client::new().get(file_url).send().await?;
 
     if !response.status().is_success() {
         return Err(format!("无法获取文件: {}", response.status()).into());
     }
 
-    let file_size = response.content_length()
-        .unwrap_or(0);
+    let file_size = response.content_length().unwrap_or(0);
     let num_chunks = (file_size as f64 / CHUNK_SIZE as f64).ceil() as usize;
 
     params.on_progress(DownloadProgress {
         phase: "download-start".to_string(),
-        message: format!("[download] 开始：{:.2}MB，分块={}", file_size as f64 / 1024.0 / 1024.0, num_chunks),
+        message: format!(
+            "[download] 开始：{:.2}MB，分块={}",
+            file_size as f64 / 1024.0 / 1024.0,
+            num_chunks
+        ),
         progress: Some(0.0),
         file_size: Some(file_size),
         downloaded: Some(0),
@@ -380,7 +400,7 @@ pub async fn download_ipa_with_account<S: AppleAuthService>(
 
         progress[i] = std::cmp::min(CHUNK_SIZE as u64, file_size - (i * CHUNK_SIZE) as u64);
         downloaded = progress.iter().sum();
-        
+
         let percent = ((downloaded as f64 / file_size as f64) * 100.0).min(100.0) as u32;
 
         params.on_progress(DownloadProgress {
@@ -439,12 +459,14 @@ pub async fn download_ipa_with_account<S: AppleAuthService>(
     let metadata_info = DownloadMetadata {
         bundle_display_name: bundle_display_name.to_string(),
         bundle_short_version_string: bundle_short_version.to_string(),
-        bundle_id: metadata.get("bundleId")
+        bundle_id: metadata
+            .get("bundleId")
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string(),
         artwork_url: get_artwork_from_map(metadata),
-        artist_name: metadata.get("artistName")
+        artist_name: metadata
+            .get("artistName")
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string(),
@@ -476,7 +498,7 @@ pub trait AppleAuthService {
         app_ver_id: Option<&str>,
         auth_info: &AuthInfo,
     ) -> Result<std::collections::HashMap<String, Value>, Box<dyn std::error::Error + Send + Sync>>;
-    
+
     async fn ensure_license(
         &self,
         app_identifier: &str,
@@ -492,7 +514,8 @@ impl AppleAuthService for Store {
         app_identifier: &str,
         app_ver_id: Option<&str>,
         auth_info: &AuthInfo,
-    ) -> Result<std::collections::HashMap<String, Value>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<std::collections::HashMap<String, Value>, Box<dyn std::error::Error + Send + Sync>>
+    {
         Store::download_product(self, app_identifier, app_ver_id, auth_info).await
     }
 
@@ -501,7 +524,8 @@ impl AppleAuthService for Store {
         app_identifier: &str,
         app_ver_id: Option<&str>,
         auth_info: &AuthInfo,
-    ) -> Result<std::collections::HashMap<String, Value>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<std::collections::HashMap<String, Value>, Box<dyn std::error::Error + Send + Sync>>
+    {
         Store::ensure_license(self, app_identifier, app_ver_id, auth_info).await
     }
 }
@@ -513,7 +537,8 @@ impl AppleAuthService for AccountStore {
         app_identifier: &str,
         app_ver_id: Option<&str>,
         _auth_info: &AuthInfo,
-    ) -> Result<std::collections::HashMap<String, Value>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<std::collections::HashMap<String, Value>, Box<dyn std::error::Error + Send + Sync>>
+    {
         AccountStore::download_product(self, app_identifier, app_ver_id).await
     }
 
@@ -522,7 +547,8 @@ impl AppleAuthService for AccountStore {
         app_identifier: &str,
         app_ver_id: Option<&str>,
         _auth_info: &AuthInfo,
-    ) -> Result<std::collections::HashMap<String, Value>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<std::collections::HashMap<String, Value>, Box<dyn std::error::Error + Send + Sync>>
+    {
         AccountStore::ensure_license(self, app_identifier, app_ver_id).await
     }
 }

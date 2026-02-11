@@ -1,6 +1,6 @@
-use std::path::Path;
-use rusqlite::{Connection, Result, params, OptionalExtension};
+use rusqlite::{params, Connection, OptionalExtension, Result};
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Account {
@@ -65,7 +65,7 @@ pub struct Database {
 impl Database {
     pub fn new(db_path: &str) -> Result<Self> {
         let path = Path::new(db_path);
-        
+
         if let Some(parent) = path.parent() {
             if !parent.exists() {
                 std::fs::create_dir_all(parent).unwrap();
@@ -73,9 +73,11 @@ impl Database {
         }
 
         let connection = Connection::open(path)?;
-        
+
         // PRAGMA 语句使用 query_row 而不是 execute
-        let _ = connection.query_row("PRAGMA journal_mode = WAL", [], |row| row.get::<_, String>(0));
+        let _ = connection.query_row("PRAGMA journal_mode = WAL", [], |row| {
+            row.get::<_, String>(0)
+        });
         let _ = connection.query_row("PRAGMA foreign_keys = ON", [], |row| row.get::<_, i32>(0));
 
         Self::create_tables(&connection)?;
@@ -87,7 +89,8 @@ impl Database {
     }
 
     fn create_tables(conn: &Connection) -> Result<()> {
-        conn.execute("
+        conn.execute(
+            "
             CREATE TABLE IF NOT EXISTS accounts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 token TEXT UNIQUE NOT NULL,
@@ -99,9 +102,12 @@ impl Database {
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
-        ", [])?;
+        ",
+            [],
+        )?;
 
-        conn.execute("
+        conn.execute(
+            "
             CREATE TABLE IF NOT EXISTS credentials (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 email TEXT UNIQUE NOT NULL,
@@ -112,9 +118,12 @@ impl Database {
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
-        ", [])?;
+        ",
+            [],
+        )?;
 
-        conn.execute("
+        conn.execute(
+            "
             CREATE TABLE IF NOT EXISTS encryption_keys (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 key_id TEXT UNIQUE NOT NULL,
@@ -124,9 +133,12 @@ impl Database {
                 last_rotation INTEGER NOT NULL,
                 next_rotation INTEGER NOT NULL
             )
-        ", [])?;
+        ",
+            [],
+        )?;
 
-        conn.execute("
+        conn.execute(
+            "
             CREATE TABLE IF NOT EXISTS download_records (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 app_name TEXT NOT NULL,
@@ -145,7 +157,9 @@ impl Database {
                 error TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
-        ", [])?;
+        ",
+            [],
+        )?;
 
         Ok(())
     }
@@ -166,9 +180,14 @@ impl Database {
             .filter_map(|r| r.ok())
             .collect();
 
-        let has_region = table_info.iter().any(|(_, name, _, _, _, _)| name == "region");
+        let has_region = table_info
+            .iter()
+            .any(|(_, name, _, _, _, _)| name == "region");
         if !has_region {
-            let _ = conn.execute("ALTER TABLE accounts ADD COLUMN region TEXT DEFAULT 'US'", []);
+            let _ = conn.execute(
+                "ALTER TABLE accounts ADD COLUMN region TEXT DEFAULT 'US'",
+                [],
+            );
         }
 
         let table_info: Vec<(i32, String, String, bool, i32, bool)> = conn
@@ -186,11 +205,18 @@ impl Database {
             .filter_map(|r| r.ok())
             .collect();
 
-        let has_progress = table_info.iter().any(|(_, name, _, _, _, _)| name == "progress");
-        let has_error = table_info.iter().any(|(_, name, _, _, _, _)| name == "error");
+        let has_progress = table_info
+            .iter()
+            .any(|(_, name, _, _, _, _)| name == "progress");
+        let has_error = table_info
+            .iter()
+            .any(|(_, name, _, _, _, _)| name == "error");
 
         if !has_progress {
-            let _ = conn.execute("ALTER TABLE download_records ADD COLUMN progress INTEGER DEFAULT 0", []);
+            let _ = conn.execute(
+                "ALTER TABLE download_records ADD COLUMN progress INTEGER DEFAULT 0",
+                [],
+            );
         }
         if !has_error {
             let _ = conn.execute("ALTER TABLE download_records ADD COLUMN error TEXT", []);
@@ -204,38 +230,43 @@ impl Database {
     pub fn get_all_accounts(&self) -> Result<Vec<Account>> {
         let conn = self.connection.lock().unwrap();
         let mut stmt = conn.prepare("SELECT * FROM accounts")?;
-        let accounts = stmt.query_map([], |row| {
-            Ok(Account {
-                id: row.get(0)?,
-                token: row.get(1)?,
-                email: row.get(2)?,
-                region: row.get(3)?,
-                guid: row.get(4)?,
-                cookie_user: row.get(5)?,
-                cookies: row.get(6)?,
-                created_at: row.get(7)?,
-                updated_at: row.get(8)?,
-            })
-        })?.filter_map(|r| r.ok()).collect();
+        let accounts = stmt
+            .query_map([], |row| {
+                Ok(Account {
+                    id: row.get(0)?,
+                    token: row.get(1)?,
+                    email: row.get(2)?,
+                    region: row.get(3)?,
+                    guid: row.get(4)?,
+                    cookie_user: row.get(5)?,
+                    cookies: row.get(6)?,
+                    created_at: row.get(7)?,
+                    updated_at: row.get(8)?,
+                })
+            })?
+            .filter_map(|r| r.ok())
+            .collect();
         Ok(accounts)
     }
 
     pub fn get_account_by_token(&self, token: &str) -> Result<Option<Account>> {
         let conn = self.connection.lock().unwrap();
         let mut stmt = conn.prepare("SELECT * FROM accounts WHERE token = ?")?;
-        let account = stmt.query_row(params![token], |row| {
-            Ok(Account {
-                id: row.get(0)?,
-                token: row.get(1)?,
-                email: row.get(2)?,
-                region: row.get(3)?,
-                guid: row.get(4)?,
-                cookie_user: row.get(5)?,
-                cookies: row.get(6)?,
-                created_at: row.get(7)?,
-                updated_at: row.get(8)?,
+        let account = stmt
+            .query_row(params![token], |row| {
+                Ok(Account {
+                    id: row.get(0)?,
+                    token: row.get(1)?,
+                    email: row.get(2)?,
+                    region: row.get(3)?,
+                    guid: row.get(4)?,
+                    cookie_user: row.get(5)?,
+                    cookies: row.get(6)?,
+                    created_at: row.get(7)?,
+                    updated_at: row.get(8)?,
+                })
             })
-        }).optional()?;
+            .optional()?;
         Ok(account)
     }
 
@@ -287,42 +318,47 @@ impl Database {
     pub fn get_credentials(&self, email: &str) -> Result<Option<Credentials>> {
         let conn = self.connection.lock().unwrap();
         let mut stmt = conn.prepare("SELECT * FROM credentials WHERE email = ?")?;
-        let cred = stmt.query_row(params![email], |row| {
-            Ok(Credentials {
-                id: row.get(0)?,
-                email: row.get(1)?,
-                password_encrypted: row.get(2)?,
-                key_id: row.get(3)?,
-                iv: row.get(4)?,
-                auth_tag: row.get(5)?,
-                created_at: row.get(6)?,
-                updated_at: row.get(7)?,
+        let cred = stmt
+            .query_row(params![email], |row| {
+                Ok(Credentials {
+                    id: row.get(0)?,
+                    email: row.get(1)?,
+                    password_encrypted: row.get(2)?,
+                    key_id: row.get(3)?,
+                    iv: row.get(4)?,
+                    auth_tag: row.get(5)?,
+                    created_at: row.get(6)?,
+                    updated_at: row.get(7)?,
+                })
             })
-        }).optional()?;
+            .optional()?;
         Ok(cred)
     }
 
     pub fn get_all_credentials(&self) -> Result<Vec<Credentials>> {
         let conn = self.connection.lock().unwrap();
         let mut stmt = conn.prepare("SELECT * FROM credentials")?;
-        let creds = stmt.query_map([], |row| {
-            Ok(Credentials {
-                id: row.get(0)?,
-                email: row.get(1)?,
-                password_encrypted: row.get(2)?,
-                key_id: row.get(3)?,
-                iv: row.get(4)?,
-                auth_tag: row.get(5)?,
-                created_at: row.get(6)?,
-                updated_at: row.get(7)?,
-            })
-        })?.filter_map(|r| r.ok()).collect();
+        let creds = stmt
+            .query_map([], |row| {
+                Ok(Credentials {
+                    id: row.get(0)?,
+                    email: row.get(1)?,
+                    password_encrypted: row.get(2)?,
+                    key_id: row.get(3)?,
+                    iv: row.get(4)?,
+                    auth_tag: row.get(5)?,
+                    created_at: row.get(6)?,
+                    updated_at: row.get(7)?,
+                })
+            })?
+            .filter_map(|r| r.ok())
+            .collect();
         Ok(creds)
     }
 
     pub fn save_encryption_key(&self, key: &EncryptionKey) -> Result<()> {
         let conn = self.connection.lock().unwrap();
-        
+
         if key.is_current {
             conn.execute("UPDATE encryption_keys SET is_current = FALSE", [])?;
         }
@@ -344,34 +380,39 @@ impl Database {
     pub fn get_current_encryption_key(&self) -> Result<Option<EncryptionKey>> {
         let conn = self.connection.lock().unwrap();
         let mut stmt = conn.prepare("SELECT * FROM encryption_keys WHERE is_current = 1")?;
-        let key = stmt.query_row([], |row| {
-            Ok(EncryptionKey {
-                id: row.get(0)?,
-                key_id: row.get(1)?,
-                key_value: row.get(2)?,
-                is_current: row.get(3)?,
-                created_at: row.get(4)?,
-                last_rotation: row.get(5)?,
-                next_rotation: row.get(6)?,
+        let key = stmt
+            .query_row([], |row| {
+                Ok(EncryptionKey {
+                    id: row.get(0)?,
+                    key_id: row.get(1)?,
+                    key_value: row.get(2)?,
+                    is_current: row.get(3)?,
+                    created_at: row.get(4)?,
+                    last_rotation: row.get(5)?,
+                    next_rotation: row.get(6)?,
+                })
             })
-        }).optional()?;
+            .optional()?;
         Ok(key)
     }
 
     pub fn get_all_encryption_keys(&self) -> Result<Vec<EncryptionKey>> {
         let conn = self.connection.lock().unwrap();
         let mut stmt = conn.prepare("SELECT * FROM encryption_keys ORDER BY created_at DESC")?;
-        let keys = stmt.query_map([], |row| {
-            Ok(EncryptionKey {
-                id: row.get(0)?,
-                key_id: row.get(1)?,
-                key_value: row.get(2)?,
-                is_current: row.get(3)?,
-                created_at: row.get(4)?,
-                last_rotation: row.get(5)?,
-                next_rotation: row.get(6)?,
-            })
-        })?.filter_map(|r| r.ok()).collect();
+        let keys = stmt
+            .query_map([], |row| {
+                Ok(EncryptionKey {
+                    id: row.get(0)?,
+                    key_id: row.get(1)?,
+                    key_value: row.get(2)?,
+                    is_current: row.get(3)?,
+                    created_at: row.get(4)?,
+                    last_rotation: row.get(5)?,
+                    next_rotation: row.get(6)?,
+                })
+            })?
+            .filter_map(|r| r.ok())
+            .collect();
         Ok(keys)
     }
 
@@ -408,27 +449,31 @@ impl Database {
 
     pub fn get_all_download_records(&self) -> Result<Vec<DownloadRecord>> {
         let conn = self.connection.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT * FROM download_records ORDER BY download_date DESC")?;
-        let records = stmt.query_map([], |row| {
-            Ok(DownloadRecord {
-                id: row.get(0)?,
-                app_name: row.get(1)?,
-                app_id: row.get(2)?,
-                bundle_id: row.get(3)?,
-                version: row.get(4)?,
-                account_email: row.get(5)?,
-                account_region: row.get(6)?,
-                download_date: row.get(7)?,
-                status: row.get(8)?,
-                file_size: row.get(9)?,
-                install_url: row.get(10)?,
-                artwork_url: row.get(11)?,
-                artist_name: row.get(12)?,
-                progress: row.get(13)?,
-                error: row.get(14)?,
-                created_at: row.get(15)?,
-            })
-        })?.filter_map(|r| r.ok()).collect();
+        let mut stmt =
+            conn.prepare("SELECT * FROM download_records ORDER BY download_date DESC")?;
+        let records = stmt
+            .query_map([], |row| {
+                Ok(DownloadRecord {
+                    id: row.get(0)?,
+                    app_name: row.get(1)?,
+                    app_id: row.get(2)?,
+                    bundle_id: row.get(3)?,
+                    version: row.get(4)?,
+                    account_email: row.get(5)?,
+                    account_region: row.get(6)?,
+                    download_date: row.get(7)?,
+                    status: row.get(8)?,
+                    file_size: row.get(9)?,
+                    install_url: row.get(10)?,
+                    artwork_url: row.get(11)?,
+                    artist_name: row.get(12)?,
+                    progress: row.get(13)?,
+                    error: row.get(14)?,
+                    created_at: row.get(15)?,
+                })
+            })?
+            .filter_map(|r| r.ok())
+            .collect();
         Ok(records)
     }
 

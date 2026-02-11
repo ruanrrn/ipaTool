@@ -1,6 +1,6 @@
+use rand::Rng;
 use std::collections::HashMap;
 use std::sync::Mutex;
-use rand::Rng;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const KEY_ROTATION_INTERVAL_MS: i64 = 30 * 24 * 60 * 60 * 1000;
@@ -38,7 +38,11 @@ impl KeyManager {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_millis() as i64;
-        format!("key-{:x}-{}", timestamp, hex::encode(rand::thread_rng().gen::<[u8; 4]>()))
+        format!(
+            "key-{:x}-{}",
+            timestamp,
+            hex::encode(rand::thread_rng().gen::<[u8; 4]>())
+        )
     }
 
     pub fn needs_rotation(&self) -> bool {
@@ -65,16 +69,14 @@ impl KeyManager {
 
         let new_key = self.generate_new_key();
         let new_key_id = self.generate_key_id();
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)?
-            .as_millis() as i64;
+        let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis() as i64;
         let next = now + KEY_ROTATION_INTERVAL_MS;
 
         {
             let mut current_key = self.current_key.lock().unwrap();
             *current_key = Some(new_key.clone());
         }
-        
+
         *current_key_id = Some(new_key_id.clone());
 
         {

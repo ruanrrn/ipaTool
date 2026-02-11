@@ -1,4 +1,4 @@
-use reqwest::{Client, header};
+use reqwest::{header, Client};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -24,21 +24,21 @@ impl Store {
             .timeout(Duration::from_secs(30))
             .build()
             .unwrap();
-        
+
         // 生成 GUID（使用 MAC 地址或随机 UUID）
         let guid = Self::generate_guid();
-        
-        Store {
-            client,
-            guid,
-        }
+
+        Store { client, guid }
     }
-    
+
     fn generate_guid() -> String {
         // 简单的 GUID 生成
-        uuid::Uuid::new_v4().to_string().to_uppercase().replace("-", "")
+        uuid::Uuid::new_v4()
+            .to_string()
+            .to_uppercase()
+            .replace("-", "")
     }
-    
+
     pub fn get_headers() -> header::HeaderMap {
         let mut headers = header::HeaderMap::new();
         headers.insert(
@@ -47,7 +47,10 @@ impl Store {
                 .parse()
                 .unwrap(),
         );
-        headers.insert("Content-Type", "application/x-www-form-urlencoded".parse().unwrap());
+        headers.insert(
+            "Content-Type",
+            "application/x-www-form-urlencoded".parse().unwrap(),
+        );
         headers
     }
 
@@ -64,10 +67,16 @@ impl Store {
 
         let mut auth_data = HashMap::new();
         auth_data.insert("appleId", Value::String(email.to_string()));
-        auth_data.insert("attempt", Value::Number(serde_json::Number::from(if mfa.is_some() { 2 } else { 4 })));
+        auth_data.insert(
+            "attempt",
+            Value::Number(serde_json::Number::from(if mfa.is_some() { 2 } else { 4 })),
+        );
         auth_data.insert("createSession", Value::String("true".to_string()));
         auth_data.insert("guid", Value::String(self.guid.clone()));
-        auth_data.insert("password", Value::String(format!("{}{}", password, mfa.unwrap_or(""))));
+        auth_data.insert(
+            "password",
+            Value::String(format!("{}{}", password, mfa.unwrap_or(""))),
+        );
         auth_data.insert("rmp", Value::Number(serde_json::Number::from(0)));
         auth_data.insert("why", Value::String("signIn".to_string()));
 
@@ -81,7 +90,7 @@ impl Store {
             .await?;
 
         let result: HashMap<String, Value> = response.json().await?;
-        
+
         let mut final_result = result.clone();
         if result.contains_key("failureType") {
             final_result.insert("_state".to_string(), Value::String("failure".to_string()));
@@ -203,19 +212,31 @@ impl AccountStore {
         password: &str,
         mfa: Option<&str>,
     ) -> Result<HashMap<String, Value>, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.store.authenticate(&self.account_email, password, mfa).await?;
-        
+        let result = self
+            .store
+            .authenticate(&self.account_email, password, mfa)
+            .await?;
+
         // 提取认证信息
         if result.get("_state").and_then(|v| v.as_str()) == Some("success") {
             let auth_info = AuthInfo {
-                ds_person_id: result.get("dsPersonId").and_then(|v| v.as_str()).map(String::from),
-                password_token: result.get("passwordToken").and_then(|v| v.as_str()).map(String::from),
-                display_name: result.get("displayName").and_then(|v| v.as_str()).map(String::from),
+                ds_person_id: result
+                    .get("dsPersonId")
+                    .and_then(|v| v.as_str())
+                    .map(String::from),
+                password_token: result
+                    .get("passwordToken")
+                    .and_then(|v| v.as_str())
+                    .map(String::from),
+                display_name: result
+                    .get("displayName")
+                    .and_then(|v| v.as_str())
+                    .map(String::from),
                 email: Some(self.account_email.clone()),
             };
             self.auth_info = Some(auth_info);
         }
-        
+
         Ok(result)
     }
 
@@ -224,9 +245,10 @@ impl AccountStore {
         app_identifier: &str,
         app_ver_id: Option<&str>,
     ) -> Result<HashMap<String, Value>, Box<dyn std::error::Error + Send + Sync>> {
-        let auth_info = self.auth_info.as_ref()
-            .ok_or("Not authenticated")?;
-        self.store.download_product(app_identifier, app_ver_id, auth_info).await
+        let auth_info = self.auth_info.as_ref().ok_or("Not authenticated")?;
+        self.store
+            .download_product(app_identifier, app_ver_id, auth_info)
+            .await
     }
 
     pub async fn ensure_license(
@@ -234,8 +256,9 @@ impl AccountStore {
         app_identifier: &str,
         app_ver_id: Option<&str>,
     ) -> Result<HashMap<String, Value>, Box<dyn std::error::Error + Send + Sync>> {
-        let auth_info = self.auth_info.as_ref()
-            .ok_or("Not authenticated")?;
-        self.store.ensure_license(app_identifier, app_ver_id, auth_info).await
+        let auth_info = self.auth_info.as_ref().ok_or("Not authenticated")?;
+        self.store
+            .ensure_license(app_identifier, app_ver_id, auth_info)
+            .await
     }
 }

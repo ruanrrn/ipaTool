@@ -1,11 +1,11 @@
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
-use serde::{Deserialize, Serialize};
-use std::sync::Mutex;
-use ipa_webtool_services::{Database, AccountStore};
-use std::collections::HashMap;
+use ipa_webtool_services::{AccountStore, Database};
 use reqwest::Client;
-use tokio::sync::RwLock;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashMap;
+use std::sync::Mutex;
+use tokio::sync::RwLock;
 
 #[derive(Serialize)]
 struct ApiResponse<T> {
@@ -87,29 +87,28 @@ async fn health() -> impl Responder {
 }
 
 // 查询版本
-async fn get_versions(
-    query: web::Query<VersionQuery>,
-) -> impl Responder {
+async fn get_versions(query: web::Query<VersionQuery>) -> impl Responder {
     let appid = &query.appid;
     let region = query.region.as_deref().unwrap_or("US");
-    
+
     let client = Client::new();
-    
+
     // 尝试第一个 API
     let url1 = format!(
         "https://api.timbrd.com/apple/app-version/index.php?id={}&country={}",
         appid, region
     );
-    
+
     let response1 = client.get(&url1).send().await;
     let versions = if let Ok(resp) = response1 {
-        resp.json::<serde_json::Value>().await.ok().and_then(|json| {
-            json.get("data").and_then(|d| d.as_array()).cloned()
-        })
+        resp.json::<serde_json::Value>()
+            .await
+            .ok()
+            .and_then(|json| json.get("data").and_then(|d| d.as_array()).cloned())
     } else {
         None
     };
-    
+
     let final_versions = if let Some(vers) = versions {
         vers
     } else {
@@ -118,7 +117,7 @@ async fn get_versions(
             "https://apis.bilin.eu.org/history/{}?country={}",
             appid, region
         );
-        
+
         let response2 = client.get(&url2).send().await;
         if let Ok(resp) = response2 {
             if let Ok(json) = resp.json::<serde_json::Value>().await {
@@ -134,7 +133,7 @@ async fn get_versions(
             vec![]
         }
     };
-    
+
     let formatted_versions: Vec<serde_json::Value> = final_versions
         .iter()
         .map(|item| {
@@ -157,8 +156,14 @@ async fn get_versions(
             })
         })
         .filter(|v| {
-            v.get("bundle_version").and_then(|bv| bv.as_str()).map(|s| !s.is_empty()).unwrap_or(false)
-                && v.get("external_identifier").and_then(|ei| ei.as_i64()).map(|id| id > 0).unwrap_or(false)
+            v.get("bundle_version")
+                .and_then(|bv| bv.as_str())
+                .map(|s| !s.is_empty())
+                .unwrap_or(false)
+                && v.get("external_identifier")
+                    .and_then(|ei| ei.as_i64())
+                    .map(|id| id > 0)
+                    .unwrap_or(false)
         })
         .collect();
 
@@ -166,25 +171,28 @@ async fn get_versions(
 }
 
 // 获取下载链接
-async fn get_download_url(
-    query: web::Query<DownloadUrlQuery>,
-) -> impl Responder {
+async fn get_download_url(query: web::Query<DownloadUrlQuery>) -> impl Responder {
     let accounts = ACCOUNTS.read().await;
     let account_store = accounts.get(&query.token);
-    
+
     if account_store.is_none() {
-        return HttpResponse::Unauthorized().json(ApiResponse::<String>::error("无效的 token".to_string()));
+        return HttpResponse::Unauthorized()
+            .json(ApiResponse::<String>::error("无效的 token".to_string()));
     }
-    
+
     let account_store = account_store.unwrap();
-    
+
     // 调用 download_product
-    match account_store.download_product(&query.appid, query.appVerId.as_deref()).await {
+    match account_store
+        .download_product(&query.appid, query.appVerId.as_deref())
+        .await
+    {
         Ok(result) => {
-            let state = result.get("_state")
+            let state = result
+                .get("_state")
                 .and_then(|v| v.as_str())
                 .unwrap_or("failure");
-            
+
             if state == "success" {
                 // 提取下载链接
                 if let Some(song_list) = result.get("songList").and_then(|sl| sl.as_array()) {
@@ -192,7 +200,7 @@ async fn get_download_url(
                         if let Some(url) = first_song.get("URL").and_then(|u| u.as_str()) {
                             // 提取元数据
                             let metadata = first_song.get("metadata").and_then(|m| m.as_object());
-                            
+
                             return HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({
                                 "url": url,
                                 "fileName": format!("{}_{}.ipa",
@@ -210,19 +218,21 @@ async fn get_download_url(
                         }
                     }
                 }
-                
-                HttpResponse::BadRequest().json(ApiResponse::<String>::error("无法获取下载链接".to_string()))
+
+                HttpResponse::BadRequest()
+                    .json(ApiResponse::<String>::error("无法获取下载链接".to_string()))
             } else {
                 // 检查是否需要购买
-                let error_msg = result.get("customerMessage")
+                let error_msg = result
+                    .get("customerMessage")
                     .or(result.get("failureType"))
                     .and_then(|v| v.as_str())
                     .unwrap_or("下载失败");
-                
+
                 let is_license_error = error_msg.to_lowercase().contains("license")
                     || error_msg.to_lowercase().contains("not found")
                     || error_msg.contains("未购买");
-                
+
                 if is_license_error {
                     HttpResponse::BadRequest().json(serde_json::json!({
                         "ok": false,
@@ -230,13 +240,15 @@ async fn get_download_url(
                         "error": error_msg
                     }))
                 } else {
-                    HttpResponse::BadRequest().json(ApiResponse::<String>::error(error_msg.to_string()))
+                    HttpResponse::BadRequest()
+                        .json(ApiResponse::<String>::error(error_msg.to_string()))
                 }
             }
         }
-        Err(e) => {
-            HttpResponse::InternalServerError().json(ApiResponse::<String>::error(format!("获取下载链接失败: {}", e)))
-        }
+        Err(e) => HttpResponse::InternalServerError().json(ApiResponse::<String>::error(format!(
+            "获取下载链接失败: {}",
+            e
+        ))),
     }
 }
 
@@ -245,43 +257,39 @@ async fn download_ipa(
     req: web::Json<DownloadRequest>,
     data: web::Data<AppState>,
 ) -> impl Responder {
-    
-    
-    
     // 验证 token
     let accounts = data.accounts.read().await;
     let _account_store = accounts.get(&req.token);
-    
+
     if _account_store.is_none() {
-        return HttpResponse::Unauthorized().json(ApiResponse::<String>::error("无效的 token".to_string()));
+        return HttpResponse::Unauthorized()
+            .json(ApiResponse::<String>::error("无效的 token".to_string()));
     }
-    
+
     drop(accounts);
-    
+
     // 创建下载目录
     let download_dir = "../downloads";
     if tokio::fs::create_dir_all(download_dir).await.is_err() {
-        return HttpResponse::InternalServerError().json(ApiResponse::<String>::error("创建下载目录失败".to_string()));
+        return HttpResponse::InternalServerError()
+            .json(ApiResponse::<String>::error("创建下载目录失败".to_string()));
     }
-    
+
     // 获取下载 URL
     let url = &req.url;
-    
+
     // 解析 URL 获取文件名
     let filename = url.split("/").last().unwrap_or("app.ipa");
     let filepath = format!("{}/{}", download_dir, filename);
-    
+
     // 开始下载
     match download_file_with_progress(url, &filepath).await {
-        Ok(metadata) => {
-            HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({
-                "file": filepath,
-                "metadata": metadata
-            })))
-        }
-        Err(e) => {
-            HttpResponse::InternalServerError().json(ApiResponse::<String>::error(format!("下载失败: {}", e)))
-        }
+        Ok(metadata) => HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({
+            "file": filepath,
+            "metadata": metadata
+        }))),
+        Err(e) => HttpResponse::InternalServerError()
+            .json(ApiResponse::<String>::error(format!("下载失败: {}", e))),
     }
 }
 
@@ -292,28 +300,28 @@ async fn download_file_with_progress(
     use reqwest::Client;
     use tokio::fs::File;
     use tokio::io::AsyncWriteExt;
-    
+
     let client = Client::new();
     let response = client.get(url).send().await?;
-    
+
     if !response.status().is_success() {
         return Err(format!("HTTP 错误: {}", response.status()).into());
     }
-    
+
     let total_size = response.content_length().unwrap_or(0);
     let bytes = response.bytes().await?;
-    
+
     let mut file = File::create(filepath).await?;
     file.write_all(&bytes).await?;
     file.flush().await?;
-    
+
     let downloaded = bytes.len() as u64;
-    
+
     if total_size > 0 {
         let progress = (downloaded as f64 / total_size as f64) * 100.0;
         log::info!("下载完成: {:.1}% ({}/{})", progress, downloaded, total_size);
     }
-    
+
     // 返回元数据
     Ok(serde_json::json!({
         "bundle_display_name": "Downloaded App",
@@ -330,7 +338,7 @@ async fn search_app(
     query: web::Query<std::collections::HashMap<String, String>>,
 ) -> impl Responder {
     use reqwest::Client;
-    
+
     let term = match query.get("term") {
         Some(t) => t.as_str(),
         None => "",
@@ -347,11 +355,13 @@ async fn search_app(
         Some(l) => l.as_str(),
         None => "25",
     };
-    
+
     if term.is_empty() {
-        return HttpResponse::BadRequest().json(ApiResponse::<String>::error("搜索关键词不能为空".to_string()));
+        return HttpResponse::BadRequest().json(ApiResponse::<String>::error(
+            "搜索关键词不能为空".to_string(),
+        ));
     }
-    
+
     // 调用 Apple Search API
     let url = format!(
         "https://itunes.apple.com/search?term={}&country={}&media={}&limit={}",
@@ -360,7 +370,7 @@ async fn search_app(
         media,
         limit
     );
-    
+
     let client = Client::new();
     match client.get(&url).send().await {
         Ok(response) => {
@@ -387,52 +397,59 @@ async fn search_app(
                                             })
                                         })
                                         .collect();
-                                    
-                                    return HttpResponse::Ok().json(ApiResponse::success(formatted_apps));
+
+                                    return HttpResponse::Ok()
+                                        .json(ApiResponse::success(formatted_apps));
                                 }
                             }
                         }
-                        
+
                         // 没有找到结果
                         HttpResponse::Ok().json(ApiResponse::<Vec<Value>>::success(vec![]))
                     }
                     Err(e) => {
                         log::error!("解析搜索结果失败: {}", e);
-                        HttpResponse::InternalServerError().json(ApiResponse::<String>::error("解析搜索结果失败".to_string()))
+                        HttpResponse::InternalServerError()
+                            .json(ApiResponse::<String>::error("解析搜索结果失败".to_string()))
                     }
                 }
             } else {
                 log::error!("搜索 API 返回错误: {}", response.status());
-                HttpResponse::InternalServerError().json(ApiResponse::<String>::error("搜索 API 返回错误".to_string()))
+                HttpResponse::InternalServerError().json(ApiResponse::<String>::error(
+                    "搜索 API 返回错误".to_string(),
+                ))
             }
         }
         Err(e) => {
             log::error!("搜索请求失败: {}", e);
-            HttpResponse::InternalServerError().json(ApiResponse::<String>::error(format!("搜索请求失败: {}", e)))
+            HttpResponse::InternalServerError()
+                .json(ApiResponse::<String>::error(format!("搜索请求失败: {}", e)))
         }
     }
 }
 
 // 登录
-async fn login(
-    req: web::Json<LoginRequest>,
-) -> impl Responder {
+async fn login(req: web::Json<LoginRequest>) -> impl Responder {
     let mut account_store = AccountStore::new(&req.email);
-    
-    match account_store.authenticate(&req.password, req.mfa.as_deref()).await {
+
+    match account_store
+        .authenticate(&req.password, req.mfa.as_deref())
+        .await
+    {
         Ok(result) => {
-            let state = result.get("_state")
+            let state = result
+                .get("_state")
                 .and_then(|v| v.as_str())
                 .unwrap_or("failure");
-            
+
             if state == "success" {
                 // 生成 token
                 let token = uuid::Uuid::new_v4().to_string();
-                
+
                 // 存储账号信息
                 let mut accounts = ACCOUNTS.write().await;
                 accounts.insert(token.clone(), account_store);
-                
+
                 // 返回成功响应
                 HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({
                     "token": token,
@@ -441,17 +458,17 @@ async fn login(
                 })))
             } else {
                 // 返回失败响应
-                let error_msg = result.get("customerMessage")
+                let error_msg = result
+                    .get("customerMessage")
                     .or(result.get("failureType"))
                     .and_then(|v| v.as_str())
                     .unwrap_or("登录失败");
-                
+
                 HttpResponse::BadRequest().json(ApiResponse::<String>::error(error_msg.to_string()))
             }
         }
-        Err(e) => {
-            HttpResponse::InternalServerError().json(ApiResponse::<String>::error(format!("登录失败: {}", e)))
-        }
+        Err(e) => HttpResponse::InternalServerError()
+            .json(ApiResponse::<String>::error(format!("登录失败: {}", e))),
     }
 }
 
