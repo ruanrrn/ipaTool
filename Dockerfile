@@ -40,6 +40,11 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
+    libssl3 \
+    perl \
+    make \
+    gcc \
+    g++ \
     && rm -rf /var/lib/apt/lists/*
 
 # 复制 Cargo 配置文件到工作目录
