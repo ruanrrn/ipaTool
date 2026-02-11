@@ -13,6 +13,11 @@ on:
         required: false
         default: 'true'
         type: boolean
+      force_build:
+        description: 'Force build even if version exists'
+        required: false
+        default: 'false'
+        type: boolean
   push:
     tags:
       - '*.*.*'
@@ -30,9 +35,57 @@ on:
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: ipa-webtool
+  IMAGE_NAME: ipatool
 
 jobs:
+  check-version:
+    name: Check Version
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    outputs:
+      should_build: ${{ steps.check.outputs.should_build }}
+      version: ${{ steps.check.outputs.version }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get version from package.json
+        id: check
+        run: |
+          # 从 package.json 读取版本号
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Version from package.json: ${VERSION}"
+          
+          # 如果是强制构建，直接返回 true
+          if [ "${{ inputs.force_build }}" == "true" ]; then
+            echo "Force build enabled, will build"
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # 检查 Docker Hub 是否已存在该版本
+          echo "Checking if image exists for version ${VERSION}..."
+          
+          # 设置镜像名称
+          if [ -n "${{ secrets.DOCKER_USERNAME }}" ]; then
+            IMAGE="${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}"
+          else
+            IMAGE="heard/${{ env.IMAGE_NAME }}"
+          fi
+          
+          echo "Image name: ${IMAGE}:${VERSION}"
+          
+          # 尝试拉取镜像
+          if docker pull "${IMAGE}:${VERSION}" 2>/dev/null; then
+            echo "Image ${IMAGE}:${VERSION} already exists"
+            echo "should_build=false" >> $GITHUB_OUTPUT
+          else
+            echo "Image ${IMAGE}:${VERSION} does not exist, will build"
+            echo "should_build=true" >> $GITHUB_OUTPUT
+          fi
+
   debug:
     name: Debug Build
     runs-on: ubuntu-latest
@@ -87,13 +140,33 @@ jobs:
       - name: Test full Docker build (no push)
         run: |
           echo "=== Testing full Docker build ==="
-          docker build -t ipa-webtool:debug .
-          docker images ipa-webtool:debug
+          docker build -t ipatool:debug .
+          docker images ipatool:debug
+
+  skip-build:
+    name: Skip Build
+    runs-on: ubuntu-latest
+    needs: check-version
+    if: needs.check-version.outputs.should_build == 'false'
+    
+    steps:
+      - name: Skip notification
+        run: |
+          VERSION="${{ needs.check-version.outputs.version }}"
+          echo "==================================="
+          echo "Version ${VERSION} already exists"
+          echo "Skipping build and push"
+          echo "==================================="
+          echo ""
+          echo "To force build, run workflow with 'force_build' input set to true"
 
   build:
     name: Build and Push
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'
+    needs: check-version
+    if: |
+      github.event_name != 'pull_request' && 
+      (github.event_name == 'workflow_dispatch' || needs.check-version.outputs.should_build == 'true')
     permissions:
       contents: read
       packages: write
