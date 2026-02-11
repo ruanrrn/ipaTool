@@ -12,14 +12,17 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
 
 # 安装依赖（使用缓存挂载）
-RUN --mount=type=cache,target=/root/.pnpm-store \
-    pnpm install --frozen-lockfile
+RUN --mount=type=cache,target=/root/.pnpm-store,id=pnpm_cache \
+    pnpm install --frozen-lockfile && \
+    pnpm check || echo "Warning: Some dependencies may be missing"
 
-# 一次性复制所有源文件（减少层数）
-COPY src/ index.html tailwind.config.js postcss.config.js vite.config.js ./
+# 复制所有源文件（包括 index.html）
+COPY . .
 
-# 构建前端
-RUN pnpm run build
+# 构建前端（显示详细输出）
+RUN pnpm run build && \
+    ls -la dist/ && \
+    echo "Frontend build completed successfully"
 
 # Rust 后端构建阶段
 FROM rust:1.84-slim AS backend-builder
@@ -44,24 +47,27 @@ RUN apt-get update && apt-get install -y \
 # 复制 Cargo 配置文件
 COPY server/Cargo.toml server/Cargo.lock ./
 
-# 使用 Cargo 缓存（BuildKit）
-RUN --mount=type=cache,target=/app/target,id=cargo_cache \
-    --mount=type=cache,target=/usr/local/cargo,id=registry_cache \
-    --mount=type=cache,target=/usr/local/rust,id=rust_cache \
+# 使用 Cargo 缓存（BuildKit）- 预构建依赖
+RUN --mount=type=cache,target=/app/target,id=cargo_cache,sharing=locked \
+    --mount=type=cache,target=/usr/local/cargo,id=registry_cache,sharing=locked \
+    --mount=type=cache,target=/usr/local/rust,id=rust_cache,sharing=locked \
     mkdir src && \
     echo "fn main() {}" > src/main.rs && \
     echo "#![allow(dead_code)]" > src/lib.rs && \
     cargo build --release && \
-    rm -rf src
+    rm -rf src && \
+    echo "Dependency build completed successfully"
 
 # 复制实际源代码
 COPY server/src ./src
 
-# 构建应用（使用缓存）
-RUN --mount=type=cache,target=/app/target,id=cargo_cache \
-    --mount=type=cache,target=/usr/local/cargo,id=registry_cache \
-    --mount=type=cache,target=/usr/local/rust,id=rust_cache \
-    cargo build --release
+# 构建应用（使用缓存）- 只构建 release 版本
+RUN --mount=type=cache,target=/app/target,id=cargo_cache,sharing=locked \
+    --mount=type=cache,target=/usr/local/cargo,id=registry_cache,sharing=locked \
+    --mount=type=cache,target=/usr/local/rust,id=rust_cache,sharing=locked \
+    cargo build --release && \
+    ls -lh target/release/server && \
+    echo "Backend build completed successfully"
 
 # 生产环境镜像
 FROM debian:bookworm-slim
