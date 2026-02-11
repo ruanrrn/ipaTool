@@ -41,7 +41,6 @@ Thumbs.db
 # Rust
 server/target
 server/**/*.rs.bk
-server/Cargo.lock
 
 # Logs
 *.log
