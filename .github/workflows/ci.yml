@@ -1,15 +1,14 @@
 name: CI
 
 on:
-  # 手动触发
   workflow_dispatch:
-  # Pull Request时触发（仅测试，不构建）
   pull_request:
-    branches: [ main, master ]
-  # 推送触发（版本标签或版本文件变更）
+    branches:
+      - main
+      - master
   push:
     tags:
-      - '*.*.*'
+      - 'v*.*.*'
     branches:
       - main
       - master
@@ -21,7 +20,6 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  # 检测版本号是否变更
   detect-version:
     name: Detect Version Change
     runs-on: ubuntu-latest
@@ -40,11 +38,9 @@ jobs:
       - name: Check version change
         id: check
         run: |
-          # 获取上一个commit的package.json版本
           git checkout HEAD~1 -- package.json 2>/dev/null || echo "no_previous"
           OLD_VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "none")
           
-          # 恢复当前版本
           git checkout HEAD -- package.json
           NEW_VERSION=$(node -p "require('./package.json').version")
           
@@ -61,7 +57,6 @@ jobs:
             echo "Version not changed"
           fi
 
-  # 运行测试
   test:
     name: Test
     runs-on: ubuntu-latest
@@ -93,7 +88,6 @@ jobs:
       - name: Check formatting
         run: cd server && cargo fmt -- --check
 
-  # 构建二进制文件
   build:
     name: Build Binary
     runs-on: ubuntu-latest
@@ -140,7 +134,6 @@ jobs:
           path: server/target/release/server
           retention-days: 7
 
-  # 触发Docker构建（如果版本变更）
   trigger-docker:
     name: Trigger Docker Build
     runs-on: ubuntu-latest

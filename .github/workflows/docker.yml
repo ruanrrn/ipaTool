@@ -1,7 +1,6 @@
 name: Docker Build
 
 on:
-  # 手动触发
   workflow_dispatch:
     inputs:
       push_image:
@@ -14,16 +13,15 @@ on:
         required: false
         default: 'true'
         type: boolean
-  # 版本标签触发（如 1.0.0）
   push:
     tags:
-      - '*.*.*'
-  # 版本变更触发
+      - 'v*.*.*'
   repository_dispatch:
     types: [version-changed]
-  # Pull Request（仅构建，不推送）
   pull_request:
-    branches: [ main, master ]
+    branches:
+      - main
+      - master
     paths:
       - 'Dockerfile'
       - 'server/**'
@@ -35,7 +33,6 @@ env:
   IMAGE_NAME: ipa-webtool
 
 jobs:
-  # 调试构建（仅在PR或手动触发时）
   debug:
     name: Debug Build
     runs-on: ubuntu-latest
@@ -85,7 +82,6 @@ jobs:
           docker build -t ipa-webtool:debug .
           docker images ipa-webtool:debug
 
-  # 生产构建
   build:
     name: Build and Push
     runs-on: ubuntu-latest
