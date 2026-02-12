@@ -70,6 +70,12 @@ RUN --mount=type=cache,target=/app/target,id=cargo_cache,sharing=locked \
     ls -lh target/release/server && \
     echo "Backend build completed successfully"
 
+# 将构建产物从缓存目录复制到镜像层（确保 COPY --from=backend-builder 可以访问）
+RUN --mount=type=cache,target=/app/target,id=cargo_cache,sharing=locked \
+    cp target/release/server /app/server && \
+    ls -lh /app/server && \
+    echo "Binary copied successfully"
+
 # 生产环境镜像
 FROM debian:bookworm-slim
 
