@@ -48,15 +48,18 @@ RUN rustc --version && cargo --version
 # 复制 Cargo 配置文件
 COPY server/Cargo.toml server/Cargo.lock ./
 
-# 使用 Cargo 缓存（BuildKit）- 预构建依赖
-# 注意：不要缓存 /usr/local/cargo，因为 Cargo 已经在那里了
-RUN --mount=type=cache,target=/app/target,id=cargo_cache,sharing=locked \
-    mkdir src && \
+# 创建占位符源文件用于预构建依赖
+RUN mkdir src && \
     echo "fn main() {}" > src/main.rs && \
-    echo "#![allow(dead_code)]" > src/lib.rs && \
+    echo "#![allow(dead_code)]" > src/lib.rs
+
+# 预构建依赖（使用 BuildKit 缓存）
+RUN --mount=type=cache,target=/app/target,id=cargo_cache,sharing=locked \
     cargo build --release && \
-    rm -rf src && \
     echo "Dependency build completed successfully"
+
+# 删除占位符源文件
+RUN rm -rf src
 
 # 复制实际源代码
 COPY server/src ./src
