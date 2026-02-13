@@ -22,25 +22,102 @@
 
 ## 🚀 快速开始
 
-### Docker 部署（推荐）
+### 🐳 Docker 部署（推荐）
+
+**为什么推荐 Docker 部署？**
+- ✅ **一键部署** - 无需手动安装依赖
+- ✅ **环境隔离** - 不污染本地环境
+- ✅ **跨平台** - 支持 Linux、macOS、Windows
+- ✅ **易于维护** - 升级和迁移简单
+- ✅ **生产就绪** - 包含所有运行时依赖
+
+#### 方式一：使用 Docker Compose（最简单）
 
 ```bash
 # 1. 克隆项目
 git clone https://github.com/ruanrrn/ipaTool.git
 cd ipaTool
 
-# 2. 启动服务
+# 2. 启动服务（后台运行）
 docker-compose up -d
 
-# 3. 访问应用
+# 3. 查看日志
+docker-compose logs -f
+
+# 4. 访问应用
 open http://localhost:8080
+
+# 5. 停止服务
+docker-compose down
 ```
 
-### 本地开发
+#### 方式二：使用 Docker 命令
+
+```bash
+# 1. 克隆项目
+git clone https://github.com/ruanrrn/ipaTool.git
+cd ipaTool
+
+# 2. 构建镜像
+docker build -t ipa-webtool:latest .
+
+# 3. 运行容器
+docker run -d \
+  --name ipa-webtool \
+  -p 8080:8080 \
+  -v $(pwd)/data:/app/data \
+  ipa-webtool:latest
+
+# 4. 查看日志
+docker logs -f ipa-webtool
+
+# 5. 访问应用
+open http://localhost:8080
+
+# 6. 停止容器
+docker stop ipa-webtool
+docker rm ipa-webtool
+```
+
+#### Docker 部署说明
+
+**端口映射：**
+- `8080:8080` - 将容器 8080 端口映射到主机 8080 端口
+
+**数据持久化：**
+- `-v $(pwd)/data:/app/data` - 将主机 `./data` 目录挂载到容器
+- 数据库文件：`./data/ipa-webtool.db`
+- 加密密钥：`./data/.encryption_key`
+
+**环境变量（可选）：**
+```bash
+docker run -d \
+  --name ipa-webtool \
+  -p 8080:8080 \
+  -v $(pwd)/data:/app/data \
+  -e RUST_LOG=info \
+  -e SERVER_HOST=0.0.0.0 \
+  -e SERVER_PORT=8080 \
+  ipa-webtool:latest
+```
+
+**查看容器状态：**
+```bash
+# 查看运行中的容器
+docker ps
+
+# 查看容器详细信息
+docker inspect ipa-webtool
+
+# 进入容器调试
+docker exec -it ipa-webtool /bin/bash
+```
+
+### 💻 本地开发
 
 **前置要求：**
 - Node.js 18+
-- pnpm 8+
+- pnpm 9+
 - Rust 1.70+
 
 ```bash
@@ -63,7 +140,9 @@ cargo run
 # 后端: http://localhost:8080
 ```
 
-### 生产部署
+### 🏭 生产部署
+
+**推荐使用 Docker 部署，如需手动部署：**
 
 ```bash
 # 1. 构建前端
@@ -73,14 +152,73 @@ pnpm run build
 cd server
 cargo build --release
 
-# 3. 使用 Docker 部署
-docker-compose up -d
-
-# 或直接运行
-./server/target/release/server
+# 3. 运行服务
+./target/release/server
 ```
 
 ## 📖 使用说明
+
+### Docker 部署管理
+
+**查看日志：**
+```bash
+# Docker Compose
+docker-compose logs -f
+
+# Docker 命令
+docker logs -f ipa-webtool
+```
+
+**重启服务：**
+```bash
+# Docker Compose
+docker-compose restart
+
+# Docker 命令
+docker restart ipa-webtool
+```
+
+**停止服务：**
+```bash
+# Docker Compose
+docker-compose down
+
+# Docker 命令
+docker stop ipa-webtool
+docker rm ipa-webtool
+```
+
+**更新到最新版本：**
+```bash
+# Docker Compose
+docker-compose down
+git pull
+docker-compose up -d
+
+# Docker 命令
+docker stop ipa-webtool
+docker rm ipa-webtool
+docker pull ruanrrn/ipa-webtool:latest
+docker run -d --name ipa-webtool -p 8080:8080 -v $(pwd)/data:/app/data ruanrrn/ipa-webtool:latest
+```
+
+**备份数据：**
+```bash
+# 备份数据库
+cp data/ipa-webtool.db data/ipa-webtool.db.backup
+
+# 备份整个数据目录
+tar -czf ipa-webtool-data-backup.tar.gz data/
+```
+
+**恢复数据：**
+```bash
+# 恢复数据库
+cp data/ipa-webtool.db.backup data/ipa-webtool.db
+
+# 恢复整个数据目录
+tar -xzf ipa-webtool-data-backup.tar.gz
+```
 
 ### 添加账号
 在"账号"标签页添加 Apple ID，密码将使用 AES-256-GCM 加密存储
@@ -237,116 +375,6 @@ window.open(installUrl);
 - [ ] 插件系统
 - [ ] 企业证书签名支持
 
-## 🔧 常用命令
-
-```bash
-# Docker 部署
-docker-compose up -d          # 启动服务
-docker-compose down           # 停止服务
-docker-compose logs -f        # 查看日志
-docker-compose restart        # 重启服务
-
-# 前端开发
-pnpm install                  # 安装依赖
-pnpm run dev                  # 启动开发服务器
-pnpm run build                # 构建生产版本
-pnpm run preview              # 预览构建结果
-
-# 后端开发
-cd server
-cargo build --release         # 构建发布版本
-cargo run                     # 运行开发版本
-cargo test                    # 运行测试
-cargo clean                   # 清理构建缓存
-```
-
-## 🔒 安全说明
-
-### 数据安全
-- 账号信息使用 AES-256-GCM 加密存储
-- 密钥每 30 天自动轮换
-- 数据完全存储在本地
-- 无云端依赖，隐私安全
-
-### 部署安全
-- **强烈建议使用 HTTPS 部署**
-- OTA 安装功能必须使用 HTTPS
-- 使用 Let's Encrypt 获取免费 SSL 证书
-- 或使用 Cloudflare Tunnel 提供 HTTPS
-
-### HTTPS 部署方案
-
-#### 方案 1: Nginx 反向代理
-```nginx
-server {
-    listen 443 ssl http2;
-    server_name your-domain.com;
-    
-    ssl_certificate /etc/letsencrypt/live/your-domain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
-    
-    location / {
-        proxy_pass http://localhost:8080;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-#### 方案 2: Cloudflare Tunnel（免费）
-```bash
-# 1. 下载 cloudflared
-curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-darwin-amd64 -o cloudflared
-chmod +x cloudflared
-
-# 2. 创建隧道
-./cloudflared tunnel --url http://localhost:8080
-
-# 3. 访问生成的 HTTPS URL
-```
-
-#### 方案 3: Caddy（自动 HTTPS）
-```bash
-# 1. 安装 Caddy
-brew install caddy
-
-# 2. 创建 Caddyfile
-echo 'your-domain.com {
-    reverse_proxy localhost:8080
-}' > Caddyfile
-
-# 3. 启动 Caddy
-caddy run
-```
-
-## 🐛 故障排查
-
-```bash
-# Docker 部署问题
-# 查看容器日志
-docker-compose logs -f ipa-webtool
-
-# 重启容器
-docker-compose restart
-
-# 删除数据库重新初始化
-docker-compose down -v
-docker-compose up -d
-
-# 本地开发问题
-# 查看后端详细日志
-cd server
-RUST_LOG=debug cargo run
-
-# 重新构建后端
-cargo clean && cargo build --release
-
-# 检查数据库
-sqlite3 server/data/ipa-webtool.db ".tables"
-```
-
 ## 🔄 CI/CD
 
 项目使用 GitHub Actions 进行持续集成和部署：
@@ -361,32 +389,6 @@ sqlite3 server/data/ipa-webtool.db ".tables"
 - 手动触发 - 可随时手动运行
 
 详细说明请查看 [GITHUB_ACTIONS_GUIDE.md](./docs/GITHUB_ACTIONS_GUIDE.md)
-
-## 🔐 HTTPS 部署
-
-**重要提示：** OTA 在线安装功能必须使用 HTTPS 协议。
-
-### 快速方案（免费）
-
-1. **Cloudflare Tunnel**（推荐）
-   ```bash
-   brew install cloudflared
-   cloudflared tunnel --url http://localhost:8080
-   ```
-
-2. **Let's Encrypt + Nginx**
-   ```bash
-   sudo certbot certonly --standalone -d your-domain.com
-   ```
-
-3. **Caddy**（自动 HTTPS）
-   ```bash
-   brew install caddy
-   echo 'your-domain.com { reverse_proxy localhost:8080 }' > Caddyfile
-   caddy run
-   ```
-
-详细配置请查看 [HTTPS_DEPLOYMENT.md](./docs/HTTPS_DEPLOYMENT.md)
 
 ## 📄 许可证
 
