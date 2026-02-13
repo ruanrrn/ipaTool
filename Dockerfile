@@ -93,7 +93,7 @@ WORKDIR /app
 COPY --from=frontend-builder /app/dist ./dist
 
 # 从 backend-builder 阶段复制构建好的后端二进制文件
-COPY --from=backend-builder /app/target/release/server ./server
+COPY --from=backend-builder /app/server ./server
 
 # 创建数据目录并设置权限
 RUN mkdir -p /app/data && \
