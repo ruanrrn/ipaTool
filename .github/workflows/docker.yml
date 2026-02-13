@@ -205,8 +205,8 @@ jobs:
           context: .
           file: ./Dockerfile
           push: |
-            ${{ inputs.push_image == 'true' }}
-            || github.event_name == 'push'
+            ${{ inputs.push_image == 'true' && 'yes' || 'no' }}
+            || github.event_name == 'push' && 'yes' || 'no'
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
