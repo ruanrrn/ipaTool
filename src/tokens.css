@@ -107,6 +107,16 @@
   --size-artwork-md: 56px;
   --size-artwork-lg: 64px;
 
+  /* Utility size aliases for common tailwind classes */
+  --size-4: 16px;
+  --size-5: 20px;
+  --size-6: 24px;
+  --size-8: 32px;
+  --size-10: 40px;
+  --size-11: 44px;
+  --size-12: 48px;
+  --size-16: 64px;
+
   --radius-card: 12px;
   --radius-control: 10px;
   --radius-field: 12px;

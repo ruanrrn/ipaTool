@@ -12,6 +12,22 @@
   .rounded-xl { border-radius: var(--radius-card) !important; }
   .rounded-2xl { border-radius: var(--radius-artwork-lg) !important; }
 
+  .w-4 { width: var(--size-4) !important; }
+  .h-4 { height: var(--size-4) !important; }
+  .w-5 { width: var(--size-5) !important; }
+  .h-5 { height: var(--size-5) !important; }
+  .w-6 { width: var(--size-6) !important; }
+  .h-6 { height: var(--size-6) !important; }
+  .w-8 { width: var(--size-8) !important; }
+  .h-8 { height: var(--size-8) !important; }
+  .w-10 { width: var(--size-10) !important; }
+  .h-10 { height: var(--size-10) !important; }
+  .w-12 { width: var(--size-12) !important; }
+  .h-12 { height: var(--size-12) !important; }
+  .w-16 { width: var(--size-16) !important; }
+  .h-16 { height: var(--size-16) !important; }
+  .h-11 { height: var(--size-11) !important; }
+
   .p-3 { padding: var(--space-3) !important; }
   .p-4 { padding: var(--space-4) !important; }
   .px-2 { padding-left: var(--space-2) !important; padding-right: var(--space-2) !important; }
