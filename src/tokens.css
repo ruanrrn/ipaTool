@@ -78,6 +78,22 @@
   --space-6: 32px;
 
   --hero-icon-size: 48px;
+
+  /* Size */
+  --size-icon-xs: 16px;
+  --size-icon-sm: 18px;
+  --size-icon-md: 20px;
+  --size-icon-lg: 22px;
+  --size-icon-xl: 24px;
+  --size-control-sm: 32px;
+  --size-control-md: 36px;
+  --size-control-lg: 40px;
+  --size-control-xl: 44px;
+  --size-tab-mobile: 50px;
+  --size-artwork-sm: 40px;
+  --size-artwork-md: 56px;
+  --size-artwork-lg: 64px;
+
   --radius-card: 12px;
   --radius-control: 10px;
   --radius-field: 12px;

@@ -50,8 +50,8 @@ const fallbackText = computed(() => {
 
 <style scoped>
 .app-artwork {
- width: 56px;
- height: 56px;
+ width: var(--size-artwork-md);
+ height: var(--size-artwork-md);
  flex-shrink: 0;
  overflow: hidden;
  border-radius: var(--radius-artwork);

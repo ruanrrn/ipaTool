@@ -223,7 +223,7 @@ onUnmounted(() => {
  display: inline-flex;
  align-items: center;
  gap: 8px;
- height: 38px;
+ height: var(--size-control-lg);
  padding: 0 12px;
  border: 0;
  border-radius: 0;
@@ -266,7 +266,7 @@ onUnmounted(() => {
 
 .mobile-tabs {
  display: grid;
- height: 50px;
+ height: var(--size-tab-mobile);
  padding-bottom: env(safe-area-inset-bottom);
  border-top: var(--border-width-thin) solid var(--separator);
  background: var(--card-bg);

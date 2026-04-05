@@ -254,7 +254,7 @@
 
 .el-button {
   /* shape + motion */
-  min-height: 36px;
+  min-height: var(--size-control-md);
   padding: 8px 14px;
   border-radius: var(--radius-control) !important;
   border-width: var(--border-width-thin) !important;
@@ -398,7 +398,7 @@
 .el-select__wrapper,
 .el-input-number,
 .el-upload-dragger {
-  min-height: 40px;
+  min-height: var(--size-control-lg);
   padding: 8px 12px;
   background: var(--card-bg) !important;
   border: var(--border-width-thin) solid var(--separator) !important;
@@ -493,7 +493,7 @@
 }
 
 .el-tabs__item {
-  height: 36px !important;
+  height: var(--size-control-md) !important;
   color: var(--text-secondary) !important;
   font-size: var(--font-size-sm) !important;
   font-weight: 500 !important;
