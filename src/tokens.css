@@ -1,0 +1,157 @@
+/*
+  ipaTool Design Tokens (Route 1: token-first, Tamagui-style philosophy)
+
+  Layers:
+    1) Primitive palette: Radix Colors (imported in src/main.js)
+    2) Semantic tokens: defined here
+    3) Component mapping: Element Plus + app components consume semantic
+
+  Rules:
+    - No hardcoded colors outside this file (enforced by scripts/check-no-hardcoded-colors.sh)
+*/
+
+:root {
+  color-scheme: light;
+
+  /* Typography */
+  --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif;
+
+  /* Surfaces */
+  --color-bg: var(--slate-2);
+  --color-surface: var(--slate-1);
+  --color-surface-muted: var(--slate-3);
+
+  /* Text */
+  --color-text: var(--slate-12);
+  --color-text-muted: var(--slate-11);
+  --color-text-tertiary: var(--slate-10);
+  --color-text-inverse: #ffffff;
+
+  /* Border */
+  --color-border: var(--slate-6);
+  --color-border-strong: var(--slate-7);
+
+  /* Brand / Status */
+  --color-primary: var(--blue-9);
+  --color-primary-hover: var(--blue-10);
+  --color-primary-active: var(--blue-11);
+  --color-primary-soft: var(--blue-4);
+  --color-primary-border-soft: var(--blue-7);
+  --color-primary-border-strong: var(--blue-8);
+
+  --color-success: var(--grass-9);
+  --color-success-hover: var(--grass-10);
+  --color-success-soft: var(--grass-4);
+  --color-success-border-soft: var(--grass-7);
+
+  --color-warning: var(--amber-9);
+  --color-warning-hover: var(--amber-10);
+  --color-warning-soft: var(--amber-4);
+  --color-warning-border-soft: var(--amber-7);
+
+  /* Danger overall = B (restrained) */
+  --color-danger: var(--red-8);
+  --color-danger-hover: var(--red-9);
+  --color-danger-active: var(--red-10);
+  --color-danger-soft: var(--red-4);
+  --color-danger-border-soft: var(--red-7);
+
+  /* Interaction */
+  --selection-bg: var(--blue-4);
+  --surface-scrollbar: var(--slate-8);
+
+  /* Spacing / radius / motion (keep the existing scale) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  --hero-icon-size: 48px;
+  --radius-card: 12px;
+  --radius-control: 10px;
+  --radius-field: 12px;
+
+  --transition-default: all 0.2s ease;
+
+  /* Shadows (currently mostly off, keep a single semantic hook) */
+  --shadow-elevated-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+  /* Gradients (avoid hardcoded colors; use semantic) */
+  --gradient-notification: linear-gradient(135deg, var(--color-warning) 0%, var(--color-danger) 100%);
+  --gradient-version: linear-gradient(135deg, var(--slate-9) 0%, var(--slate-11) 100%);
+
+  /* Legacy aliases (existing code uses these names) */
+  --bg-primary: var(--color-bg);
+  --card-bg: var(--color-surface);
+  --separator: var(--color-border);
+
+  --accent-blue: var(--color-primary);
+  --accent-red: var(--color-danger);
+  --accent-amber: var(--color-warning);
+  --accent-green: var(--color-success);
+
+  --text-primary: var(--color-text);
+  --text-secondary: var(--color-text-muted);
+  --text-tertiary: var(--color-text-tertiary);
+  --text-inverse: var(--color-text-inverse);
+
+  --surface-muted: var(--color-surface-muted);
+
+  --accent-blue-border-soft: var(--color-primary-border-soft);
+  --accent-blue-border-strong: var(--color-primary-border-strong);
+  --accent-blue-fill-soft: var(--color-primary-soft);
+
+  /* Element Plus semantic mapping */
+  --el-bg-color: var(--card-bg);
+  --el-bg-color-overlay: var(--card-bg);
+  --el-fill-color: var(--slate-3);
+  --el-fill-color-light: var(--slate-2);
+  --el-fill-color-lighter: var(--slate-2);
+  --el-fill-color-blank: var(--card-bg);
+
+  --el-border-color: var(--separator);
+  --el-border-color-light: var(--separator);
+  --el-border-color-lighter: var(--separator);
+  --el-border-color-dark: var(--separator);
+  --el-border-color-darker: var(--color-border-strong);
+
+  --el-text-color-primary: var(--text-primary);
+  --el-text-color-regular: var(--text-primary);
+  --el-text-color-secondary: var(--text-secondary);
+  --el-text-color-placeholder: var(--text-tertiary);
+
+  --el-color-primary: var(--accent-blue);
+  --el-color-success: var(--accent-green);
+  --el-color-warning: var(--accent-amber);
+  --el-color-danger: var(--accent-red);
+  --el-color-error: var(--accent-red);
+  --el-color-info: var(--text-secondary);
+
+  /* Primary light variants (used by some Element components) */
+  --el-color-primary-light-3: var(--blue-8);
+  --el-color-primary-light-5: var(--blue-7);
+  --el-color-primary-light-7: var(--blue-6);
+  --el-color-primary-light-8: var(--blue-4);
+  --el-color-primary-light-9: var(--blue-3);
+
+  --el-mask-color: rgba(0, 0, 0, 0.48);
+  --el-box-shadow: none;
+  --el-box-shadow-light: none;
+  --el-box-shadow-lighter: none;
+  --el-box-shadow-dark: none;
+  --el-border-radius-base: 12px;
+  --el-border-radius-small: 10px;
+}
+
+:root.dark {
+  color-scheme: dark;
+  --selection-bg: var(--blue-5);
+  --surface-scrollbar: var(--slate-9);
+  --shadow-elevated-hover: 0 4px 12px rgba(0, 0, 0, 0.36);
+  --gradient-notification: linear-gradient(135deg, var(--color-warning-hover) 0%, var(--color-danger-hover) 100%);
+  --gradient-version: linear-gradient(135deg, var(--slate-8) 0%, var(--slate-11) 100%);
+
+  --el-mask-color: rgba(0, 0, 0, 0.64);
+}

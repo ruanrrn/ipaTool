@@ -15,7 +15,8 @@
     "version:major": "npm version major && ./sync-version.sh",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
-    "format": "prettier --write \"src/**/*.{vue,js,json,css}\""
+    "format": "prettier --write \"src/**/*.{vue,js,json,css}\"",
+    "lint:tokens": "bash scripts/check-no-hardcoded-colors.sh"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",
