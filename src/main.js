@@ -18,6 +18,7 @@ import '@radix-ui/colors/grass.css'
 import '@radix-ui/colors/grass-dark.css'
 
 import App from './App.vue'
+import './tokens.css'
 import './style.css'
 
 const app = createApp(App)

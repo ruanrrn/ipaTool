@@ -2,9 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Single source of truth for design tokens */
-@import './tokens.css';
-
 @layer base {
   *, *::before, *::after {
     box-sizing: border-box;
