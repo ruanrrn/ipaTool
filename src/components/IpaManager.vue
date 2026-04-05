@@ -36,7 +36,7 @@
         </el-checkbox>
         <el-button
           size="small"
-          type="primary"
+          type="danger"
           plain
           :disabled="selectedCount === 0"
           @click="removeSelectedArtifacts"
@@ -173,7 +173,7 @@
             </el-button>
 
             <el-button
-              type="primary"
+              type="danger"
               size="small"
               plain
               @click="removeArtifact(item)"
@@ -238,7 +238,7 @@
           v-if="pendingDeleteItem"
           class="inline-panel text-xs text-secondary break-all"
         >
-          <div class="font-medium text-gray-900 dark:text-gray-100">
+          <div class="font-medium text-primary">
             {{ pendingDeleteItem.appName || pendingDeleteItem.fileName }}
           </div>
           <div class="mt-1">
@@ -258,7 +258,7 @@
             取消
           </el-button>
           <el-button
-            type="primary"
+            type="danger"
             :loading="deletingArtifact"
             @click="confirmDeleteArtifact"
           >
@@ -401,9 +401,10 @@ const removeSelectedArtifacts = async () => {
  if (selectedIds.value.length === 0) return
  try {
  await ElMessageBox.confirm(`确定批量清理 ${selectedIds.value.length} 个安装包吗？`, '确认批量清理', {
- type: 'warning',
+ type: 'error',
  confirmButtonText: '批量清理',
  cancelButtonText: '取消',
+ confirmButtonClass: 'danger-confirm-button',
  lockScroll: false
  })
 

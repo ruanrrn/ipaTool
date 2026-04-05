@@ -37,7 +37,7 @@
        <svg v-else class="h-[18px] w-[18px]" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" /></svg>
       </button>
       <button
-       class="flex h-8 w-8 items-center justify-center rounded-[10px] border border-[var(--separator)] bg-[var(--card-bg)] text-[var(--text-secondary)] transition-all duration-200 hover:text-[var(--accent-blue)]"
+       class="flex h-8 w-8 items-center justify-center rounded-[10px] border border-[var(--separator)] bg-[var(--card-bg)] text-[var(--text-secondary)] transition-all duration-200 hover:text-[var(--accent-red)]"
        title="退出登录"
        @click="handleLogout"
       >
@@ -111,7 +111,8 @@ async function handleLogout() {
    await ElMessageBox.confirm('确定要退出登录吗？', '退出确认', {
      confirmButtonText: '退出',
      cancelButtonText: '取消',
-     type: 'warning',
+     type: 'error',
+     confirmButtonClass: 'danger-confirm-button',
      lockScroll: false,
    })
    await appStore.logoutAdmin()

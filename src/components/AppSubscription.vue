@@ -125,7 +125,7 @@
                   {{ sub.app_name }}
                 </h3>
                 <el-button
-                  type="primary"
+                  type="danger"
                   size="small"
                   :icon="Delete"
                   plain
@@ -358,7 +358,8 @@ const addSubscription = async () => {
 const removeSubscription = async (sub) => {
  try {
  await ElMessageBox.confirm(`确定要取消订阅 "${sub.app_name}"吗？`, '确认取消', {
- type: 'warning',
+ type: 'error',
+ confirmButtonClass: 'danger-confirm-button',
  lockScroll: false
  })
 

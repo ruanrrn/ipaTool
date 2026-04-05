@@ -333,6 +333,21 @@
   border-color: var(--color-danger-border-soft) !important;
 }
 
+/* MessageBox destructive confirms */
+.danger-confirm-button,
+.danger-confirm-button:hover,
+.danger-confirm-button:focus {
+  background: var(--accent-red) !important;
+  border-color: var(--accent-red) !important;
+  color: var(--text-inverse) !important;
+}
+
+.danger-confirm-button:active {
+  background: var(--color-danger-hover) !important;
+  border-color: var(--color-danger-hover) !important;
+  color: var(--text-inverse) !important;
+}
+
 .el-button--info.is-plain {
   background: transparent !important;
   color: var(--text-secondary) !important;

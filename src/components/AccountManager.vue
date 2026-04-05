@@ -76,10 +76,11 @@
               @click="refreshAccount(account, index)"
             />
             <el-button
-              type="primary"
+              type="danger"
               :icon="Delete"
 
               size="small"
+              plain
               class="remove-button "
               title="删除账号"
               @click="removeAccount(account, index)"
@@ -459,9 +460,10 @@ const removeAccount = async (accountOrIndex, indexArg) => {
 			'确定要删除这个账号吗？',
 			'确认删除',
 			{
-				type: 'warning',
+				type: 'error',
 				confirmButtonText: '删除',
 				cancelButtonText: '取消',
+				confirmButtonClass: 'danger-confirm-button',
 				lockScroll: false,
 			}
 		)
