@@ -5,21 +5,77 @@
 :root {
   color-scheme: light;
   --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif;
-  --bg-primary: #F2F2F7;
-  --card-bg: #FFFFFF;
-  --separator: rgba(0, 0, 0, 0.1);
-  --accent-blue: #0A84FF;
-  --accent-red: #FF453A;
-  --text-primary: #000000;
-  --text-secondary: #8E8E93;
-  --text-tertiary: #8E8E93;
-  --text-inverse: #FFFFFF;
-  --selection-bg: rgba(10, 132, 255, 0.24);
-  --surface-muted: rgba(142, 142, 147, 0.08);
-  --surface-scrollbar: rgba(142, 142, 147, 0.4);
-  --accent-blue-border-soft: rgba(10, 132, 255, 0.28);
-  --accent-blue-border-strong: rgba(10, 132, 255, 0.45);
-  --accent-blue-fill-soft: rgba(10, 132, 255, 0.16);
+
+  /*
+    Design tokens
+    - primitive palette: Radix Colors (imported in src/main.js)
+    - semantic mapping: app-level roles (bg/surface/text/accent/danger/...)
+  */
+  --color-bg: var(--slate-2);
+  --color-surface: var(--slate-1);
+  --color-surface-muted: var(--slate-3);
+  --color-border: var(--slate-6);
+  --color-border-strong: var(--slate-7);
+
+  --color-text: var(--slate-12);
+  --color-text-muted: var(--slate-11);
+  --color-text-tertiary: var(--slate-10);
+  --color-text-inverse: #ffffff;
+
+  --color-accent: var(--blue-9);
+  --color-accent-hover: var(--blue-10);
+  --color-accent-border-soft: var(--blue-7);
+  --color-accent-border-strong: var(--blue-8);
+  --color-accent-fill-soft: var(--blue-4);
+
+  /* Danger: A+B
+     - strong: destructive primary actions (filled danger buttons)
+     - normal: general danger semantic (tags, hints, inline text)
+  */
+  --color-danger-strong: var(--red-9);
+  --color-danger-strong-hover: var(--red-10);
+  --color-danger-strong-active: var(--red-11);
+
+  --color-danger: var(--red-8);
+  --color-danger-hover: var(--red-9);
+  --color-danger-active: var(--red-10);
+
+  --color-danger-border-soft: var(--red-7);
+  --color-danger-fill-soft: var(--red-4);
+
+  --color-warning: var(--amber-9);
+  --color-warning-hover: var(--amber-10);
+  --color-warning-border-soft: var(--amber-7);
+  --color-warning-fill-soft: var(--amber-4);
+
+  --color-success: var(--grass-9);
+  --color-success-hover: var(--grass-10);
+  --color-success-border-soft: var(--grass-7);
+  --color-success-fill-soft: var(--grass-4);
+
+  /* Legacy variables (existing code uses these names) */
+  --bg-primary: var(--color-bg);
+  --card-bg: var(--color-surface);
+  --separator: var(--color-border);
+
+  --accent-blue: var(--color-accent);
+  --accent-red: var(--color-danger-strong);
+  --accent-amber: var(--color-warning);
+  --accent-green: var(--color-success);
+
+  --text-primary: var(--color-text);
+  --text-secondary: var(--color-text-muted);
+  --text-tertiary: var(--color-text-tertiary);
+  --text-inverse: var(--color-text-inverse);
+
+  --selection-bg: var(--blue-4);
+  --surface-muted: var(--color-surface-muted);
+  --surface-scrollbar: var(--slate-8);
+
+  --accent-blue-border-soft: var(--color-accent-border-soft);
+  --accent-blue-border-strong: var(--color-accent-border-strong);
+  --accent-blue-fill-soft: var(--color-accent-fill-soft);
+
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -32,34 +88,43 @@
   --radius-field: 12px;
   --transition-default: all 0.2s ease;
   --shadow-elevated-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
-  --gradient-notification: linear-gradient(135deg, #ff9f0a 0%, #ff453a 100%);
+  --gradient-notification: linear-gradient(135deg, var(--color-warning) 0%, var(--color-danger) 100%);
   --gradient-version: linear-gradient(135deg, #7c8aa5 0%, #4f5d75 100%);
 
+  /* Element Plus semantic mapping */
   --el-bg-color: var(--card-bg);
   --el-bg-color-overlay: var(--card-bg);
-  --el-fill-color: rgba(142, 142, 147, 0.12);
-  --el-fill-color-light: rgba(142, 142, 147, 0.08);
-  --el-fill-color-lighter: rgba(142, 142, 147, 0.06);
+  --el-fill-color: var(--slate-3);
+  --el-fill-color-light: var(--slate-2);
+  --el-fill-color-lighter: var(--slate-2);
   --el-fill-color-blank: var(--card-bg);
+
   --el-border-color: var(--separator);
   --el-border-color-light: var(--separator);
   --el-border-color-lighter: var(--separator);
   --el-border-color-dark: var(--separator);
+  --el-border-color-darker: var(--color-border-strong);
+
   --el-text-color-primary: var(--text-primary);
   --el-text-color-regular: var(--text-primary);
   --el-text-color-secondary: var(--text-secondary);
-  --el-text-color-placeholder: var(--text-secondary);
+  --el-text-color-placeholder: var(--text-tertiary);
+
   --el-color-primary: var(--accent-blue);
-  --el-color-primary-light-3: var(--accent-blue);
-  --el-color-primary-light-5: rgba(10, 132, 255, 0.2);
-  --el-color-primary-light-7: rgba(10, 132, 255, 0.14);
-  --el-color-primary-light-8: rgba(10, 132, 255, 0.1);
-  --el-color-primary-light-9: rgba(10, 132, 255, 0.08);
-  --el-color-success: var(--accent-blue);
-  --el-color-warning: var(--accent-blue);
-  --el-color-danger: var(--accent-blue);
-  --el-color-error: var(--accent-blue);
+  --el-color-success: var(--accent-green);
+  --el-color-warning: var(--accent-amber);
+  /* use the *normal* danger for general components; destructive buttons override to strong */
+  --el-color-danger: var(--color-danger);
+  --el-color-error: var(--color-danger);
   --el-color-info: var(--text-secondary);
+
+  /* Primary light variants (used by some Element components) */
+  --el-color-primary-light-3: var(--blue-8);
+  --el-color-primary-light-5: var(--blue-7);
+  --el-color-primary-light-7: var(--blue-6);
+  --el-color-primary-light-8: var(--blue-4);
+  --el-color-primary-light-9: var(--blue-3);
+
   --el-mask-color: rgba(0, 0, 0, 0.48);
   --el-box-shadow: none;
   --el-box-shadow-light: none;
@@ -71,23 +136,14 @@
 
 :root.dark {
   color-scheme: dark;
-  --bg-primary: #000000;
-  --card-bg: #1C1C1E;
-  --separator: rgba(255, 255, 255, 0.12);
-  --accent-red: #FF6961;
-  --text-primary: #FFFFFF;
-  --text-secondary: #8E8E93;
-  --text-tertiary: #8E8E93;
-  --text-inverse: #FFFFFF;
-  --selection-bg: rgba(10, 132, 255, 0.32);
-  --surface-muted: rgba(142, 142, 147, 0.14);
-  --surface-scrollbar: rgba(142, 142, 147, 0.52);
-  --accent-blue-border-soft: rgba(10, 132, 255, 0.36);
-  --accent-blue-border-strong: rgba(10, 132, 255, 0.55);
-  --accent-blue-fill-soft: rgba(10, 132, 255, 0.22);
+
+  /* primitives already switch via Radix (.dark sets --slate-*, --blue-*, ...)
+     Here we only tune a few alpha-dependent tokens. */
+  --selection-bg: var(--blue-5);
+  --surface-scrollbar: var(--slate-9);
   --el-mask-color: rgba(0, 0, 0, 0.64);
   --shadow-elevated-hover: 0 4px 12px rgba(0, 0, 0, 0.36);
-  --gradient-notification: linear-gradient(135deg, #ffb340 0%, #ff6b5f 100%);
+  --gradient-notification: linear-gradient(135deg, var(--color-warning-hover) 0%, var(--color-danger-hover) 100%);
   --gradient-version: linear-gradient(135deg, #8d9ab2 0%, #62708b 100%);
 }
 
@@ -342,10 +398,7 @@
 }
 
 .el-button {
-  --el-button-border-color: var(--accent-blue-border-soft);
-  --el-button-hover-border-color: var(--accent-blue);
-  --el-button-active-border-color: var(--accent-blue);
-  --el-button-outline-color: var(--accent-blue-fill-soft);
+  /* shape + motion */
   min-height: 36px;
   padding: 8px 14px;
   border-radius: 10px !important;
@@ -354,26 +407,80 @@
   transform: none !important;
   font-size: 13px;
   font-weight: 500;
+
+  /* default (outline) behavior — semantic types override below */
+  --el-button-border-color: var(--accent-blue-border-soft);
+  --el-button-hover-border-color: var(--accent-blue);
+  --el-button-active-border-color: var(--accent-blue);
+  --el-button-outline-color: var(--accent-blue-fill-soft);
 }
 
-.el-button:not(.el-button--primary) {
+/* default button (no explicit type) */
+.el-button--default {
   background: transparent !important;
   color: var(--accent-blue) !important;
+  border-color: var(--accent-blue-border-soft) !important;
 }
 
-.el-button--primary,
-.el-button--success,
-.el-button--warning,
-.el-button--danger,
-.el-button--info {
+/* semantic button types */
+.el-button--primary {
   background: var(--accent-blue) !important;
   border-color: var(--accent-blue) !important;
   color: var(--text-inverse) !important;
 }
 
-.el-button.is-plain {
+.el-button--success {
+  background: var(--accent-green) !important;
+  border-color: var(--accent-green) !important;
+  color: var(--text-inverse) !important;
+}
+
+.el-button--warning {
+  background: var(--accent-amber) !important;
+  border-color: var(--accent-amber) !important;
+  color: var(--text-inverse) !important;
+}
+
+.el-button--danger {
+  background: var(--accent-red) !important;
+  border-color: var(--accent-red) !important;
+  color: var(--text-inverse) !important;
+}
+
+.el-button--info {
+  background: var(--slate-9) !important;
+  border-color: var(--slate-9) !important;
+  color: var(--text-inverse) !important;
+}
+
+/* plain variants keep semantic colors */
+.el-button--primary.is-plain {
   background: transparent !important;
   color: var(--accent-blue) !important;
+  border-color: var(--accent-blue-border-soft) !important;
+}
+
+.el-button--success.is-plain {
+  background: transparent !important;
+  color: var(--accent-green) !important;
+  border-color: var(--color-success-border-soft) !important;
+}
+
+.el-button--warning.is-plain {
+  background: transparent !important;
+  color: var(--accent-amber) !important;
+  border-color: var(--color-warning-border-soft) !important;
+}
+
+.el-button--danger.is-plain {
+  background: transparent !important;
+  color: var(--accent-red) !important;
+  border-color: var(--color-danger-border-soft) !important;
+}
+
+.el-button--info.is-plain {
+  background: transparent !important;
+  color: var(--text-secondary) !important;
   border-color: var(--separator) !important;
 }
 
@@ -446,17 +553,37 @@
   color: var(--text-secondary) !important;
 }
 
-.el-tag,
-.el-tag.el-tag--success,
-.el-tag.el-tag--warning,
-.el-tag.el-tag--danger,
-.el-tag.el-tag--info,
-.el-tag.el-tag--primary {
+.el-tag {
   min-height: 24px;
   padding: 0 8px;
   border-radius: 10px !important;
   border: 0.5px solid var(--separator) !important;
   background: transparent !important;
+  color: var(--text-secondary) !important;
+}
+
+.el-tag.el-tag--primary {
+  border-color: var(--accent-blue-border-soft) !important;
+  color: var(--accent-blue) !important;
+}
+
+.el-tag.el-tag--success {
+  border-color: var(--color-success-border-soft) !important;
+  color: var(--accent-green) !important;
+}
+
+.el-tag.el-tag--warning {
+  border-color: var(--color-warning-border-soft) !important;
+  color: var(--accent-amber) !important;
+}
+
+.el-tag.el-tag--danger {
+  border-color: var(--color-danger-border-soft) !important;
+  color: var(--accent-red) !important;
+}
+
+.el-tag.el-tag--info {
+  border-color: var(--separator) !important;
   color: var(--text-secondary) !important;
 }
 

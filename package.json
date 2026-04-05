@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",
+    "@radix-ui/colors": "^3.0.0",
     "@vueuse/core": "^14.2.0",
     "element-plus": "^2.13.2",
     "jszip": "^3.10.1",
