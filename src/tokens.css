@@ -77,6 +77,19 @@
   --space-5: 24px;
   --space-6: 32px;
 
+  /* Semantic spacing / layout aliases */
+  --space-inline-xs: var(--space-1);
+  --space-inline-sm: var(--space-2);
+  --space-inline-md: var(--space-3);
+  --space-inline-lg: var(--space-4);
+  --space-stack-xs: var(--space-1);
+  --space-stack-sm: var(--space-2);
+  --space-stack-md: var(--space-3);
+  --space-stack-lg: var(--space-4);
+  --space-stack-xl: var(--space-5);
+  --space-panel-padding: var(--space-4);
+  --space-section-gap: var(--space-4);
+
   --hero-icon-size: 48px;
 
   /* Size */

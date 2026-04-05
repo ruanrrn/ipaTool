@@ -2,6 +2,50 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  /* Token-backed overrides for the most common Tailwind utilities used in ipaTool */
+  .text-xs { font-size: var(--font-size-xs) !important; }
+  .text-sm { font-size: var(--font-size-sm) !important; }
+  .text-base { font-size: var(--font-size-md) !important; }
+
+  .rounded-lg { border-radius: var(--radius-artwork) !important; }
+  .rounded-xl { border-radius: var(--radius-card) !important; }
+  .rounded-2xl { border-radius: var(--radius-artwork-lg) !important; }
+
+  .p-3 { padding: var(--space-3) !important; }
+  .p-4 { padding: var(--space-4) !important; }
+  .px-2 { padding-left: var(--space-2) !important; padding-right: var(--space-2) !important; }
+  .px-4 { padding-left: var(--space-4) !important; padding-right: var(--space-4) !important; }
+  .px-6 { padding-left: var(--space-5) !important; padding-right: var(--space-5) !important; }
+  .py-12 { padding-top: calc(var(--space-6) * 1.5) !important; padding-bottom: calc(var(--space-6) * 1.5) !important; }
+  .py-14 { padding-top: 56px !important; padding-bottom: 56px !important; }
+  .pb-6 { padding-bottom: var(--space-5) !important; }
+  .pt-3 { padding-top: var(--space-3) !important; }
+
+  .mt-1 { margin-top: var(--space-1) !important; }
+  .mt-2 { margin-top: var(--space-2) !important; }
+  .mt-3 { margin-top: var(--space-3) !important; }
+  .mt-4 { margin-top: var(--space-4) !important; }
+  .mt-6 { margin-top: var(--space-5) !important; }
+  .mb-1 { margin-bottom: var(--space-1) !important; }
+  .mb-2 { margin-bottom: var(--space-2) !important; }
+  .mb-3 { margin-bottom: var(--space-3) !important; }
+  .mb-4 { margin-bottom: var(--space-4) !important; }
+  .mb-5 { margin-bottom: 20px !important; }
+  .mb-6 { margin-bottom: var(--space-5) !important; }
+  .ml-2 { margin-left: var(--space-2) !important; }
+
+  .gap-2 { gap: var(--space-2) !important; }
+  .gap-3 { gap: var(--space-3) !important; }
+  .gap-4 { gap: var(--space-4) !important; }
+  .space-y-2 > :not([hidden]) ~ :not([hidden]) { margin-top: var(--space-2) !important; }
+  .space-y-3 > :not([hidden]) ~ :not([hidden]) { margin-top: var(--space-3) !important; }
+  .space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top: var(--space-4) !important; }
+  .space-x-2 > :not([hidden]) ~ :not([hidden]) { margin-left: var(--space-2) !important; }
+  .space-x-3 > :not([hidden]) ~ :not([hidden]) { margin-left: var(--space-3) !important; }
+  .space-x-4 > :not([hidden]) ~ :not([hidden]) { margin-left: var(--space-4) !important; }
+}
+
 @layer base {
   *, *::before, *::after {
     box-sizing: border-box;
