@@ -32,9 +32,11 @@
      - strong: destructive primary actions (filled danger buttons)
      - normal: general danger semantic (tags, hints, inline text)
   */
-  --color-danger-strong: var(--red-9);
-  --color-danger-strong-hover: var(--red-10);
-  --color-danger-strong-active: var(--red-11);
+  /* Danger overall = B (more restrained)
+     Keep a "strong" channel but align it to B as well. */
+  --color-danger-strong: var(--red-8);
+  --color-danger-strong-hover: var(--red-9);
+  --color-danger-strong-active: var(--red-10);
 
   --color-danger: var(--red-8);
   --color-danger-hover: var(--red-9);
@@ -59,7 +61,7 @@
   --separator: var(--color-border);
 
   --accent-blue: var(--color-accent);
-  --accent-red: var(--color-danger-strong);
+  --accent-red: var(--color-danger);
   --accent-amber: var(--color-warning);
   --accent-green: var(--color-success);
 
