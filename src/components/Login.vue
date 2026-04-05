@@ -19,10 +19,10 @@
             </svg>
           </div>
           <div>
-            <p class="mb-1 text-[13px] text-secondary">
+            <p class="mb-1 text-[var(--font-size-sm)] text-secondary">
               安全登录
             </p>
-            <h2 class="text-[17px] font-semibold text-primary">
+            <h2 class="text-[var(--font-size-xl)] font-semibold text-primary">
               管理员登录
             </h2>
           </div>
@@ -66,7 +66,7 @@
           <el-button
             type="primary"
             size="large"
-            class="mt-4 !h-11 w-full !rounded-[10px]"
+            class="mt-4 !h-11 w-full !rounded-[var(--radius-control)]"
             :loading="loginLoading"
             @click="handleLogin"
           >
@@ -159,7 +159,7 @@
         <template #footer>
           <el-button
             type="primary"
-            class="!rounded-[10px]"
+            class="!rounded-[var(--radius-control)]"
             :loading="pwdLoading"
             @click="handleChangePassword"
           >

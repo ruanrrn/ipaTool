@@ -659,7 +659,7 @@ defineExpose({
 .form-title,
 .section-title,
 .empty-title {
- font-size: 17px;
+ font-size: var(--font-size-xl);
  font-weight: 600;
  color: var(--text-primary);
  margin: 0;
@@ -674,7 +674,7 @@ defineExpose({
 .checkbox-label,
 .mfa-hint,
 .save-password-checkbox :deep(.el-checkbox__label) {
- font-size: 13px;
+ font-size: var(--font-size-sm);
  color: var(--text-secondary);
 }
 
@@ -702,7 +702,7 @@ defineExpose({
 
 .field-icon {
  color: var(--text-secondary);
- font-size: 16px;
+ font-size: var(--font-size-lg);
 }
 
 .submit-button {
@@ -716,8 +716,8 @@ defineExpose({
  align-items: center;
  gap: 12px;
  padding: 16px;
- border: 0.5px solid var(--separator);
- border-radius: 12px;
+ border: var(--border-width-thin) solid var(--separator);
+ border-radius: var(--radius-card);
  background: var(--card-bg);
 }
 
@@ -734,7 +734,7 @@ defineExpose({
 
 .account-email {
  margin: 0 0 2px;
- font-size: 15px;
+ font-size: var(--font-size-md);
  font-weight: 600;
  color: var(--text-primary);
  overflow: hidden;
@@ -771,15 +771,15 @@ defineExpose({
  justify-content: center;
  gap: 8px;
  padding: 12px;
- font-size: 13px;
+ font-size: var(--font-size-sm);
  background: var(--el-fill-color-light);
- border: 0.5px solid var(--separator);
- border-radius: 12px;
+ border: var(--border-width-thin) solid var(--separator);
+ border-radius: var(--radius-card);
  color: var(--text-secondary);
 }
 
 .auto-login-status .el-icon {
- font-size: 16px;
+ font-size: var(--font-size-lg);
 }
 
 .mfa-highlight :deep(.el-input__wrapper) {

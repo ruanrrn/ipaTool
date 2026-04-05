@@ -522,8 +522,8 @@ onMounted(loadArtifacts)
  align-items: flex-start;
  gap: 12px;
  padding: 16px;
- border-radius: 12px;
- border: 0.5px solid var(--separator);
+ border-radius: var(--radius-card);
+ border: var(--border-width-thin) solid var(--separator);
  background: var(--card-bg);
 }
 
@@ -543,7 +543,7 @@ onMounted(loadArtifacts)
 }
 
 .artifact-title {
- font-size: 15px;
+ font-size: var(--font-size-md);
  font-weight: 600;
  color: var(--text-primary);
  white-space: nowrap;
@@ -555,7 +555,7 @@ onMounted(loadArtifacts)
  display: flex;
  flex-wrap: wrap;
  gap: 8px 14px;
- font-size: 13px;
+ font-size: var(--font-size-sm);
  color: var(--text-secondary);
 }
 
@@ -563,7 +563,7 @@ onMounted(loadArtifacts)
 .artifact-path {
  display: block;
  margin-top: 4px;
- font-size: 13px;
+ font-size: var(--font-size-sm);
  color: var(--text-secondary);
  overflow-wrap: anywhere;
  word-break: break-word;

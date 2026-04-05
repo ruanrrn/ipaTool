@@ -215,7 +215,7 @@ onUnmounted(() => {
 .desktop-tabs {
  display: flex;
  gap: 8px;
- border-bottom: 0.5px solid var(--separator);
+ border-bottom: var(--border-width-thin) solid var(--separator);
 }
 
 .desktop-tab {
@@ -229,7 +229,7 @@ onUnmounted(() => {
  border-radius: 0;
  background: transparent;
  color: var(--text-secondary);
- font-size: 13px;
+ font-size: var(--font-size-sm);
  font-weight: 500;
 }
 
@@ -238,9 +238,9 @@ onUnmounted(() => {
  position: absolute;
  left: 0;
  right: 0;
- bottom: -0.5px;
+ bottom: calc(var(--border-width-thin) * -1);
  height: 2px;
- border-radius: 999px;
+ border-radius: var(--radius-full);
  background: transparent;
 }
 
@@ -268,7 +268,7 @@ onUnmounted(() => {
  display: grid;
  height: 50px;
  padding-bottom: env(safe-area-inset-bottom);
- border-top: 0.5px solid var(--separator);
+ border-top: var(--border-width-thin) solid var(--separator);
  background: var(--card-bg);
 }
 
@@ -281,7 +281,7 @@ onUnmounted(() => {
  border: 0;
  background: transparent;
  color: var(--text-secondary);
- font-size: 10px;
+ font-size: var(--font-size-xs);
  font-weight: 500;
 }
 

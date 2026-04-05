@@ -19,7 +19,7 @@
     background: var(--bg-primary);
     color: var(--text-primary);
     font-family: var(--font-body);
-    font-size: 15px;
+    font-size: var(--font-size-md);
     line-height: 1.45;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
@@ -36,7 +36,7 @@
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-size: 17px;
+    font-size: var(--font-size-xl);
     line-height: 1.3;
     font-weight: 600;
     color: var(--text-primary);
@@ -44,7 +44,7 @@
 
   small,
   .text-small {
-    font-size: 13px;
+    font-size: var(--font-size-sm);
   }
 
   button,
@@ -100,7 +100,7 @@
 
   ::-webkit-scrollbar-thumb {
     background: var(--surface-scrollbar);
-    border-radius: 999px;
+    border-radius: var(--radius-full);
   }
 }
 
@@ -121,9 +121,9 @@
   .selected-app-card,
   .section-shell {
     background: var(--card-bg);
-    border: 0.5px solid var(--separator);
+    border: var(--border-width-thin) solid var(--separator);
     border-radius: var(--radius-card);
-    box-shadow: none;
+    box-shadow: var(--shadow-none);
   }
 
   .card,
@@ -142,7 +142,7 @@
   .search-result-item,
   .selected-app-card {
     background: var(--card-bg);
-    border: 0.5px solid var(--separator);
+    border: var(--border-width-thin) solid var(--separator);
     border-radius: var(--radius-card);
   }
 
@@ -163,7 +163,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 10px;
+    border-radius: var(--radius-control);
     background: var(--accent-blue);
     color: var(--text-inverse);
   }
@@ -181,8 +181,8 @@
   .glass-pill,
   .glass-button {
     background: transparent;
-    border: 0.5px solid var(--separator);
-    border-radius: 10px;
+    border: var(--border-width-thin) solid var(--separator);
+    border-radius: var(--radius-control);
     box-shadow: none;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
@@ -197,11 +197,11 @@
     justify-content: center;
     min-height: 24px;
     padding: 0 8px;
-    border-radius: 10px;
-    border: 0.5px solid var(--separator);
+    border-radius: var(--radius-control);
+    border: var(--border-width-thin) solid var(--separator);
     background: transparent;
     color: var(--text-secondary);
-    font-size: 13px;
+    font-size: var(--font-size-sm);
     font-weight: 500;
   }
 
@@ -217,8 +217,8 @@
   .log-container,
   pre {
     background: var(--surface-muted);
-    border: 0.5px solid var(--separator);
-    border-radius: 12px;
+    border: var(--border-width-thin) solid var(--separator);
+    border-radius: var(--radius-card);
     color: var(--text-secondary);
   }
 
@@ -256,11 +256,11 @@
   /* shape + motion */
   min-height: 36px;
   padding: 8px 14px;
-  border-radius: 10px !important;
-  border-width: 0.5px !important;
-  box-shadow: none !important;
+  border-radius: var(--radius-control) !important;
+  border-width: var(--border-width-thin) !important;
+  box-shadow: var(--shadow-none) !important;
   transform: none !important;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 500;
 
   /* default (outline) behavior — semantic types override below */
@@ -303,8 +303,8 @@
 }
 
 .el-button--info {
-  background: var(--slate-9) !important;
-  border-color: var(--slate-9) !important;
+  background: var(--accent-info) !important;
+  border-color: var(--accent-info) !important;
   color: var(--text-inverse) !important;
 }
 
@@ -372,9 +372,9 @@
 .el-tooltip__popper,
 .el-picker-panel {
   background: var(--card-bg) !important;
-  border: 0.5px solid var(--separator) !important;
-  border-radius: 12px !important;
-  box-shadow: none !important;
+  border: var(--border-width-thin) solid var(--separator) !important;
+  border-radius: var(--radius-card) !important;
+  box-shadow: var(--shadow-none) !important;
   color: var(--text-primary) !important;
 }
 
@@ -401,9 +401,9 @@
   min-height: 40px;
   padding: 8px 12px;
   background: var(--card-bg) !important;
-  border: 0.5px solid var(--separator) !important;
-  border-radius: 12px !important;
-  box-shadow: none !important;
+  border: var(--border-width-thin) solid var(--separator) !important;
+  border-radius: var(--radius-field) !important;
+  box-shadow: var(--shadow-none) !important;
 }
 
 .el-input__wrapper.is-focus,
@@ -419,15 +419,15 @@
 .el-checkbox__label,
 .el-descriptions__label,
 .el-descriptions__content {
-  font-size: 13px !important;
+  font-size: var(--font-size-sm) !important;
   color: var(--text-secondary) !important;
 }
 
 .el-tag {
   min-height: 24px;
   padding: 0 8px;
-  border-radius: 10px !important;
-  border: 0.5px solid var(--separator) !important;
+  border-radius: var(--radius-control) !important;
+  border: var(--border-width-thin) solid var(--separator) !important;
   background: transparent !important;
   color: var(--text-secondary) !important;
 }
@@ -488,14 +488,14 @@
 }
 
 .el-tabs__nav-wrap::after {
-  height: 0.5px !important;
+  height: var(--border-width-thin) !important;
   background: var(--separator) !important;
 }
 
 .el-tabs__item {
   height: 36px !important;
   color: var(--text-secondary) !important;
-  font-size: 13px !important;
+  font-size: var(--font-size-sm) !important;
   font-weight: 500 !important;
 }
 
@@ -506,13 +506,13 @@
 
 .el-tabs__active-bar {
   height: 2px !important;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--accent-blue) !important;
 }
 
 .el-progress-bar__outer {
   background: var(--surface-muted) !important;
-  border-radius: 999px !important;
+  border-radius: var(--radius-full) !important;
 }
 
 .el-progress-bar__inner {

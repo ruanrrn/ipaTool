@@ -87,7 +87,7 @@
                 d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <span class="text-[13px] text-secondary whitespace-nowrap">
+            <span class="text-[var(--font-size-sm)] text-secondary whitespace-nowrap">
               搜索区域: <strong>{{ getRegionLabel(accounts[selectedAccount]?.region || 'US') }}</strong>
             </span>
           </div>
@@ -184,7 +184,7 @@
           <div
             v-for="app in searchResults"
             :key="app.trackId"
-            class="search-result-item flex cursor-pointer items-center space-x-4 rounded-[12px] p-3 transition-all duration-200"
+            class="search-result-item flex cursor-pointer items-center space-x-4 rounded-[var(--radius-card)] p-3 transition-all duration-200"
             @click="selectApp(app)"
           >
             <img 
@@ -219,11 +219,11 @@
             v-if="!selectedApp.isDirectAppId"
             :src="selectedApp.artworkUrl100 || selectedApp.artworkUrl60"
             :alt="selectedApp.trackName"
-            class="w-16 h-16 rounded-[20px] object-cover"
+            class="w-16 h-16 rounded-[var(--radius-artwork-lg)] object-cover"
           >
           <div 
             v-else
-            class="w-16 h-16 rounded-[10px] object-cover border border-[var(--separator)] bg-[var(--card-bg)] flex items-center justify-center"
+            class="w-16 h-16 rounded-[var(--radius-artwork)] object-cover border border-[var(--separator)] bg-[var(--card-bg)] flex items-center justify-center"
           >
             <svg
               class="w-8 h-8"
@@ -250,7 +250,7 @@
               版本: {{ selectedApp.version }} | ID: {{ selectedApp.trackId }}
               <span
                 v-if="selectedApp.isDirectAppId"
-                class="ml-2 px-2 py-0.5 inline-panel rounded-[10px] text-xs"
+                class="ml-2 px-2 py-0.5 inline-panel rounded-[var(--radius-control)] text-xs"
               >
                 直接输入
               </span>
@@ -271,7 +271,7 @@
             选择账号
             <span
               v-if="selectedAccount !== null && selectedAccount !== undefined && selectedAccount !== ''"
-              class="ml-2 text-xs px-2 py-1 inline-panel rounded-[10px]"
+              class="ml-2 text-xs px-2 py-1 inline-panel rounded-[var(--radius-control)]"
             >
               商店区域: {{ getRegionLabel(accounts[selectedAccount]?.region || 'US') }}
             </span>
@@ -452,7 +452,7 @@
           class="mb-3"
         />
         <el-scrollbar max-height="160px">
-          <pre class="log-container rounded-[12px] p-3 text-xs whitespace-pre-wrap font-mono">{{ logs }}</pre>
+          <pre class="log-container rounded-[var(--radius-card)] p-3 text-xs whitespace-pre-wrap font-mono">{{ logs }}</pre>
         </el-scrollbar>
  
         <div
@@ -1890,10 +1890,10 @@ onMounted(() => {
 <style scoped>
 .download-disabled-hint {
  padding: 10px 12px;
- border-radius: 12px;
- font-size: 13px;
+ border-radius: var(--radius-card);
+ font-size: var(--font-size-sm);
  line-height: 1.4;
- border: 0.5px solid var(--separator);
+ border: var(--border-width-thin) solid var(--separator);
  background: var(--el-fill-color-light);
  color: var(--text-secondary);
 }
@@ -1922,9 +1922,9 @@ onMounted(() => {
  display: inline-flex;
  align-items: center;
  padding: 4px 8px;
- border-radius: 10px;
- border: 0.5px solid var(--separator);
- font-size: 13px;
+ border-radius: var(--radius-control);
+ border: var(--border-width-thin) solid var(--separator);
+ font-size: var(--font-size-sm);
  line-height: 1;
  color: var(--text-secondary);
  background: transparent;
@@ -1935,7 +1935,7 @@ onMounted(() => {
 }
 
 .search-input :deep(.el-input__inner) {
- font-size: 15px;
+ font-size: var(--font-size-md);
 }
 
 .account-toolbar {
@@ -1974,7 +1974,7 @@ onMounted(() => {
 }
 
 .action-button {
- border-radius: 10px;
+ border-radius: var(--radius-control);
  font-weight: 500;
  height: 44px;
 }
@@ -1982,17 +1982,17 @@ onMounted(() => {
 .log-container {
  padding: 16px;
  font-family: 'SFMono-Regular', Consolas, monospace;
- font-size: 13px;
+ font-size: var(--font-size-sm);
  line-height: 1.6;
  max-height: 300px;
  overflow-y: auto;
  background: var(--el-fill-color-light);
- border: 0.5px solid var(--separator);
+ border: var(--border-width-thin) solid var(--separator);
 }
 
 .log-entry {
  padding: 4px 0;
- border-bottom: 0.5px solid var(--separator);
+ border-bottom: var(--border-width-thin) solid var(--separator);
 }
 
 .log-entry:last-child {

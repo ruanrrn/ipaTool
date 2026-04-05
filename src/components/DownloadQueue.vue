@@ -667,8 +667,8 @@ onBeforeUnmount(() => {
  align-items: flex-start;
  gap: 12px;
  padding: 16px;
- border-radius: 12px;
- border: 0.5px solid var(--separator);
+ border-radius: var(--radius-card);
+ border: var(--border-width-thin) solid var(--separator);
  background: var(--card-bg);
 }
 
@@ -688,7 +688,7 @@ onBeforeUnmount(() => {
 }
 
 .row-title {
- font-size: 15px;
+ font-size: var(--font-size-md);
  font-weight: 600;
  color: var(--text-primary);
  white-space: nowrap;
@@ -701,7 +701,7 @@ onBeforeUnmount(() => {
  display: flex;
  flex-wrap: wrap;
  gap: 8px 14px;
- font-size: 13px;
+ font-size: var(--font-size-sm);
  color: var(--text-secondary);
 }
 
@@ -717,7 +717,7 @@ onBeforeUnmount(() => {
 }
 
 .row-error {
- font-size: 13px;
+ font-size: var(--font-size-sm);
  color: var(--text-secondary);
 }
 

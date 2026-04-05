@@ -478,10 +478,10 @@ onMounted(() => {
 <style scoped>
 .card,
 .task-card {
- border-radius: 12px;
+ border-radius: var(--radius-card);
  background: var(--card-bg);
- border: 0.5px solid var(--separator);
- box-shadow: none;
+ border: var(--border-width-thin) solid var(--separator);
+ box-shadow: var(--shadow-none);
 }
 
 @media (max-width: 767px) {

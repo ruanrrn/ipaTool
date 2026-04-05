@@ -15,6 +15,12 @@
 
   /* Typography */
   --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif;
+  --font-size-xs: 10px;
+  --font-size-sm: 13px;
+  --font-size-md: 15px;
+  --font-size-lg: 16px;
+  --font-size-xl: 17px;
+  --font-size-2xl: 20px;
 
   /* Surfaces */
   --color-bg: var(--slate-2);
@@ -49,6 +55,9 @@
   --color-warning-soft: var(--amber-4);
   --color-warning-border-soft: var(--amber-7);
 
+  --color-info: var(--slate-9);
+  --color-info-hover: var(--slate-10);
+
   /* Danger overall = B (restrained) */
   --color-danger: var(--red-8);
   --color-danger-hover: var(--red-9);
@@ -72,11 +81,18 @@
   --radius-card: 12px;
   --radius-control: 10px;
   --radius-field: 12px;
+  --radius-artwork: 10px;
+  --radius-artwork-lg: 20px;
+  --radius-full: 999px;
+
+  --border-width-thin: 0.5px;
 
   --transition-default: all 0.2s ease;
 
-  /* Shadows (currently mostly off, keep a single semantic hook) */
+  /* Shadows / overlays */
   --shadow-elevated-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --shadow-none: none;
+  --mask-overlay: rgba(0, 0, 0, 0.48);
 
   /* Gradients (avoid hardcoded colors; use semantic) */
   --gradient-notification: linear-gradient(135deg, var(--color-warning) 0%, var(--color-danger) 100%);
@@ -91,6 +107,7 @@
   --accent-red: var(--color-danger);
   --accent-amber: var(--color-warning);
   --accent-green: var(--color-success);
+  --accent-info: var(--color-info);
 
   --text-primary: var(--color-text);
   --text-secondary: var(--color-text-muted);
@@ -127,7 +144,7 @@
   --el-color-warning: var(--accent-amber);
   --el-color-danger: var(--accent-red);
   --el-color-error: var(--accent-red);
-  --el-color-info: var(--text-secondary);
+  --el-color-info: var(--accent-info);
 
   /* Primary light variants (used by some Element components) */
   --el-color-primary-light-3: var(--blue-8);
@@ -136,14 +153,15 @@
   --el-color-primary-light-8: var(--blue-4);
   --el-color-primary-light-9: var(--blue-3);
 
-  --el-mask-color: rgba(0, 0, 0, 0.48);
-  --el-box-shadow: none;
-  --el-box-shadow-light: none;
-  --el-box-shadow-lighter: none;
-  --el-box-shadow-dark: none;
-  --el-border-radius-base: 12px;
-  --el-border-radius-small: 10px;
+  --el-mask-color: var(--mask-overlay);
+  --el-box-shadow: var(--shadow-none);
+  --el-box-shadow-light: var(--shadow-none);
+  --el-box-shadow-lighter: var(--shadow-none);
+  --el-box-shadow-dark: var(--shadow-none);
+  --el-border-radius-base: var(--radius-card);
+  --el-border-radius-small: var(--radius-control);
 }
+
 
 :root.dark {
   color-scheme: dark;
@@ -152,6 +170,12 @@
   --shadow-elevated-hover: 0 4px 12px rgba(0, 0, 0, 0.36);
   --gradient-notification: linear-gradient(135deg, var(--color-warning-hover) 0%, var(--color-danger-hover) 100%);
   --gradient-version: linear-gradient(135deg, var(--slate-8) 0%, var(--slate-11) 100%);
+  --mask-overlay: rgba(0, 0, 0, 0.64);
 
-  --el-mask-color: rgba(0, 0, 0, 0.64);
+  --el-mask-color: var(--mask-overlay);
+  --el-color-primary-light-3: var(--blue-7);
+  --el-color-primary-light-5: var(--blue-6);
+  --el-color-primary-light-7: var(--blue-5);
+  --el-color-primary-light-8: var(--blue-4);
+  --el-color-primary-light-9: var(--blue-3);
 }
