@@ -646,13 +646,13 @@ defineExpose({
 .account-header {
  display: flex;
  align-items: center;
- gap: 12px;
- margin-bottom: 12px;
+ gap: var(--space-3);
+ margin-bottom: var(--space-3);
 }
 
 .header-icon {
- width: 40px;
- height: 40px;
+ width: var(--size-artwork-sm);
+ height: var(--size-artwork-sm);
 }
 
 .header-text h2,
@@ -683,7 +683,7 @@ defineExpose({
 .accounts-list {
  display: flex;
  flex-direction: column;
- gap: 12px;
+ gap: var(--space-3);
 }
 
 .form-header,
@@ -691,13 +691,13 @@ defineExpose({
  display: flex;
  align-items: center;
  justify-content: space-between;
- margin-bottom: 12px;
+ margin-bottom: var(--space-3);
 }
 
 .form-field {
  display: flex;
  flex-direction: column;
- gap: 8px;
+ gap: var(--space-2);
 }
 
 .field-icon {
@@ -707,23 +707,23 @@ defineExpose({
 
 .submit-button {
  width: 100%;
- height: 44px;
- margin-top: 8px;
+ height: var(--size-control-xl);
+ margin-top: var(--space-2);
 }
 
 .account-item {
  display: flex;
  align-items: center;
- gap: 12px;
- padding: 16px;
+ gap: var(--space-3);
+ padding: var(--space-4);
  border: var(--border-width-thin) solid var(--separator);
  border-radius: var(--radius-card);
  background: var(--card-bg);
 }
 
 .account-avatar {
- width: 40px;
- height: 40px;
+ width: var(--size-artwork-sm);
+ height: var(--size-artwork-sm);
  flex-shrink: 0;
 }
 
@@ -733,7 +733,7 @@ defineExpose({
 }
 
 .account-email {
- margin: 0 0 2px;
+ margin: 0 0 var(--space-0-5);
  font-size: var(--font-size-md);
  font-weight: 600;
  color: var(--text-primary);
@@ -743,25 +743,25 @@ defineExpose({
 }
 
 .region-badge {
- padding: 0 8px;
+ padding: 0 var(--space-2);
 }
 
 .account-actions {
  display: flex;
  align-items: center;
- gap: 8px;
+ gap: var(--space-2);
 }
 
 .empty-state {
  text-align: center;
- padding: 32px 16px;
+ padding: var(--space-6) var(--space-4);
  border-style: solid;
 }
 
 .empty-icon {
  display: flex;
  justify-content: center;
- margin-bottom: 12px;
+ margin-bottom: var(--space-3);
  color: var(--text-secondary);
 }
 
@@ -769,8 +769,8 @@ defineExpose({
  display: flex;
  align-items: center;
  justify-content: center;
- gap: 8px;
- padding: 12px;
+ gap: var(--space-2);
+ padding: var(--space-3);
  font-size: var(--font-size-sm);
  background: var(--el-fill-color-light);
  border: var(--border-width-thin) solid var(--separator);

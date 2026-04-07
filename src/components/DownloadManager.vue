@@ -1889,7 +1889,7 @@ onMounted(() => {
 
 <style scoped>
 .download-disabled-hint {
- padding: 10px 12px;
+ padding: var(--space-2-5) var(--space-3);
  border-radius: var(--radius-card);
  font-size: var(--font-size-sm);
  line-height: 1.4;
@@ -1913,7 +1913,7 @@ onMounted(() => {
 .selected-app-badges {
  display: flex;
  flex-wrap: wrap;
- gap: 8px;
+ gap: var(--space-2);
 }
 
 .selected-app-badge,
@@ -1921,7 +1921,7 @@ onMounted(() => {
 .region-badge-mini {
  display: inline-flex;
  align-items: center;
- padding: 4px 8px;
+ padding: var(--space-1) var(--space-2);
  border-radius: var(--radius-control);
  border: var(--border-width-thin) solid var(--separator);
  font-size: var(--font-size-sm);
@@ -1931,7 +1931,7 @@ onMounted(() => {
 }
 
 .search-input :deep(.el-input__wrapper) {
- padding: 8px 12px;
+ padding: var(--space-2) var(--space-3);
 }
 
 .search-input :deep(.el-input__inner) {
@@ -1942,13 +1942,13 @@ onMounted(() => {
  display: flex;
  align-items: center;
  justify-content: space-between;
- gap: 8px;
+ gap: var(--space-2);
 }
 
 .search-mode-row {
  display: flex;
  align-items: center;
- gap: 16px;
+ gap: var(--space-4);
  flex-wrap: wrap;
 }
 
@@ -1960,7 +1960,7 @@ onMounted(() => {
 .account-option-row {
  display: flex;
  align-items: center;
- gap: 8px;
+ gap: var(--space-2);
  width: 100%;
  min-width: 0;
 }
@@ -1976,11 +1976,11 @@ onMounted(() => {
 .action-button {
  border-radius: var(--radius-control);
  font-weight: 500;
- height: 44px;
+ height: var(--size-control-xl);
 }
 
 .log-container {
- padding: 16px;
+ padding: var(--space-4);
  font-family: 'SFMono-Regular', Consolas, monospace;
  font-size: var(--font-size-sm);
  line-height: 1.6;
@@ -1991,7 +1991,7 @@ onMounted(() => {
 }
 
 .log-entry {
- padding: 4px 0;
+ padding: var(--space-1) 0;
  border-bottom: var(--border-width-thin) solid var(--separator);
 }
 
@@ -2009,7 +2009,7 @@ onMounted(() => {
 
 @media (max-width: 767px) {
  .action-button {
-  height: 44px;
+  height: var(--size-control-xl);
  }
 
  .account-toolbar {
@@ -2022,7 +2022,7 @@ onMounted(() => {
  }
 
  .search-mode-row {
-  gap: 12px;
+  gap: var(--space-3);
  }
 
  .account-quick-select {
@@ -2033,11 +2033,11 @@ onMounted(() => {
  .search-result-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
  }
 
  .selected-app-card {
-  padding: 12px !important;
+  padding: var(--space-3) !important;
  }
 }
 </style>

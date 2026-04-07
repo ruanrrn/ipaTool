@@ -256,7 +256,7 @@
     align-items: center;
     justify-content: center;
     min-height: 24px;
-    padding: 0 8px;
+    padding: 0 var(--space-2);
     border-radius: var(--radius-control);
     border: var(--border-width-thin) solid var(--separator);
     background: transparent;
@@ -315,7 +315,7 @@
 .el-button {
   /* shape + motion */
   min-height: var(--size-control-md);
-  padding: 8px 14px;
+  padding: var(--space-2) var(--space-3-5);
   border-radius: var(--radius-control) !important;
   border-width: var(--border-width-thin) !important;
   box-shadow: var(--shadow-none) !important;
@@ -442,14 +442,14 @@
 .el-dialog__body,
 .el-message-box__content,
 .el-drawer__body {
-  padding: 16px !important;
+  padding: var(--space-4) !important;
 }
 
 .el-dialog__header,
 .el-dialog__footer,
 .el-message-box__header,
 .el-message-box__btns {
-  padding: 16px !important;
+  padding: var(--space-4) !important;
   border-color: var(--separator) !important;
 }
 
@@ -459,7 +459,7 @@
 .el-input-number,
 .el-upload-dragger {
   min-height: var(--size-control-lg);
-  padding: 8px 12px;
+  padding: var(--space-2) var(--space-3);
   background: var(--card-bg) !important;
   border: var(--border-width-thin) solid var(--separator) !important;
   border-radius: var(--radius-field) !important;
@@ -485,7 +485,7 @@
 
 .el-tag {
   min-height: 24px;
-  padding: 0 8px;
+  padding: 0 var(--space-2);
   border-radius: var(--radius-control) !important;
   border: var(--border-width-thin) solid var(--separator) !important;
   background: transparent !important;
@@ -522,7 +522,7 @@
 .el-alert.el-alert--warning,
 .el-alert.el-alert--error,
 .el-alert.el-alert--info {
-  padding: 12px 14px !important;
+  padding: var(--space-3) var(--space-3-5) !important;
 }
 
 .el-alert__title,
@@ -623,6 +623,6 @@
   .form-section,
   .empty-state,
   .section-shell {
-    padding: 16px;
+    padding: var(--space-4);
   }
 }

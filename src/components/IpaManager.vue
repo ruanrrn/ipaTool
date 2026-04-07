@@ -520,8 +520,8 @@ onMounted(loadArtifacts)
 .artifact-row {
  display: flex;
  align-items: flex-start;
- gap: 12px;
- padding: 16px;
+ gap: var(--space-3);
+ padding: var(--space-4);
  border-radius: var(--radius-card);
  border: var(--border-width-thin) solid var(--separator);
  background: var(--card-bg);
@@ -532,14 +532,14 @@ onMounted(loadArtifacts)
  min-width: 0;
  display: flex;
  flex-direction: column;
- gap: 8px;
+ gap: var(--space-2);
 }
 
 .artifact-top {
  display: flex;
  justify-content: space-between;
  align-items: flex-start;
- gap: 12px;
+ gap: var(--space-3);
 }
 
 .artifact-title {
@@ -554,7 +554,7 @@ onMounted(loadArtifacts)
 .artifact-meta {
  display: flex;
  flex-wrap: wrap;
- gap: 8px 14px;
+ gap: var(--space-2) var(--space-3-5);
  font-size: var(--font-size-sm);
  color: var(--text-secondary);
 }
@@ -562,7 +562,7 @@ onMounted(loadArtifacts)
 /* File name: avoid awkward single-letter wraps on mobile */
 .artifact-path {
  display: block;
- margin-top: 4px;
+ margin-top: var(--space-1);
  font-size: var(--font-size-sm);
  color: var(--text-secondary);
  overflow-wrap: anywhere;
@@ -576,13 +576,13 @@ onMounted(loadArtifacts)
 .artifact-check {
  display: flex;
  align-items: center;
- padding-top: 4px;
+ padding-top: var(--space-1);
 }
 
 .artifact-actions {
  display: flex;
  flex-wrap: wrap;
- gap: 8px;
+ gap: var(--space-2);
  align-items: center;
 }
 

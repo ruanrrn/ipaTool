@@ -207,14 +207,14 @@ onUnmounted(() => {
 .tab-layout {
  display: flex;
  flex-direction: column;
- gap: 8px;
+ gap: var(--space-2);
  min-height: calc(100vh - 72px);
  min-height: calc(100svh - 72px);
 }
 
 .desktop-tabs {
  display: flex;
- gap: 8px;
+ gap: var(--space-2);
  border-bottom: var(--border-width-thin) solid var(--separator);
 }
 
@@ -222,9 +222,9 @@ onUnmounted(() => {
  position: relative;
  display: inline-flex;
  align-items: center;
- gap: 8px;
+ gap: var(--space-2);
  height: var(--size-control-lg);
- padding: 0 12px;
+ padding: 0 var(--space-3);
  border: 0;
  border-radius: 0;
  background: transparent;
@@ -277,7 +277,7 @@ onUnmounted(() => {
  flex-direction: column;
  align-items: center;
  justify-content: center;
- gap: 2px;
+ gap: var(--space-0-5);
  border: 0;
  background: transparent;
  color: var(--text-secondary);
@@ -290,7 +290,7 @@ onUnmounted(() => {
 }
 
 .tab-content.with-mobile-tabs {
- padding-bottom: calc(49px + env(safe-area-inset-bottom) + 12px);
+ padding-bottom: calc(49px + env(safe-area-inset-bottom) + var(--space-3));
 }
 </style>
 

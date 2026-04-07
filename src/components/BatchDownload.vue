@@ -486,7 +486,7 @@ onMounted(() => {
 
 @media (max-width: 767px) {
  .task-card :deep(.el-card__body) {
-  padding: 14px;
+  padding: var(--space-3-5);
  }
 
  .task-card .flex.items-start.justify-between {

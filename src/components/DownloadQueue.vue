@@ -665,8 +665,8 @@ onBeforeUnmount(() => {
 .queue-row {
  display: flex;
  align-items: flex-start;
- gap: 12px;
- padding: 16px;
+ gap: var(--space-3);
+ padding: var(--space-4);
  border-radius: var(--radius-card);
  border: var(--border-width-thin) solid var(--separator);
  background: var(--card-bg);
@@ -677,14 +677,14 @@ onBeforeUnmount(() => {
  flex: 1;
  display: flex;
  flex-direction: column;
- gap: 8px;
+ gap: var(--space-2);
 }
 
 .row-top {
  display: flex;
  align-items: flex-start;
  justify-content: space-between;
- gap: 12px;
+ gap: var(--space-3);
 }
 
 .row-title {
@@ -700,7 +700,7 @@ onBeforeUnmount(() => {
 .row-info {
  display: flex;
  flex-wrap: wrap;
- gap: 8px 14px;
+ gap: var(--space-2) var(--space-3-5);
  font-size: var(--font-size-sm);
  color: var(--text-secondary);
 }
@@ -708,7 +708,7 @@ onBeforeUnmount(() => {
 .row-actions {
  display: flex;
  flex-wrap: wrap;
- gap: 8px;
+ gap: var(--space-2);
  align-items: center;
 }
 
