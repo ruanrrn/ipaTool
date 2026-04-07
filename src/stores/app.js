@@ -20,9 +20,6 @@ export const useAppStore = defineStore('app', () => {
   // 下载任务队列
   const taskQueue = ref([])
 
-  // 批量下载草稿项
-  const batchDraftItems = ref([])
-
   // 当前激活的页面标签
   const activeTab = ref('download')
 
@@ -154,30 +151,6 @@ export const useAppStore = defineStore('app', () => {
     taskQueue.value = []
   }
 
-  // 添加批量下载草稿项
-  const addBatchDraftItem = (item) => {
-    const key = `${item.app_id}:${item.version || 'latest'}:${item.account_email}`
-    const existingIndex = batchDraftItems.value.findIndex(
-      draft => `${draft.app_id}:${draft.version || 'latest'}:${draft.account_email}` === key
-    )
-
-    if (existingIndex >= 0) {
-      batchDraftItems.value[existingIndex] = { ...batchDraftItems.value[existingIndex], ...item }
-      return { added: false, updated: true }
-    }
-
-    batchDraftItems.value.push(item)
-    return { added: true, updated: false }
-  }
-
-  const removeBatchDraftItem = (index) => {
-    batchDraftItems.value.splice(index, 1)
-  }
-
-  const clearBatchDraftItems = () => {
-    batchDraftItems.value = []
-  }
-
   // 触发账号更新
   const triggerAccountsUpdate = () => {
     accountsUpdateCounter.value++
@@ -186,7 +159,6 @@ export const useAppStore = defineStore('app', () => {
   return {
     downloadState,
     taskQueue,
-    batchDraftItems,
     activeTab,
     accountsUpdateCounter,
     authState,
@@ -196,9 +168,6 @@ export const useAppStore = defineStore('app', () => {
     updateQueueItem,
     removeFromQueue,
     clearQueue,
-    addBatchDraftItem,
-    removeBatchDraftItem,
-    clearBatchDraftItems,
     triggerAccountsUpdate,
     setAuthUser,
     checkAuth,

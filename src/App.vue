@@ -126,7 +126,7 @@ async function handleLogout() {
 const handleAppSelected = (app) => appStore.setSelectedApp(app)
 const handleDownloadStarted = (task) => {
  appStore.addToQueue(task)
- appStore.activeTab = 'queue'
+ appStore.activeTab = 'ipa'
 }
 const handleRemoveItem = (index) => appStore.removeFromQueue(index)
 const handleClearQueue = () => appStore.clearQueue()

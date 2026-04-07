@@ -360,29 +360,6 @@
           </el-button>
 
           <el-button
-            :disabled="(!selectedAccount && selectedAccount !== 0) || !appid"
-            type="primary"
-            plain
-            class="w-full action-button"
-            @click="addToBatchDraft"
-          >
-            <template #icon>
-              <el-icon><Plus /></el-icon>
-            </template>
-            添加到批量下载
-          </el-button>
-
-          <el-button
-            v-if="appStore.batchDraftItems.length > 0"
-            type="primary"
-            plain
-            class="w-full action-button"
-            @click="goToBatchTab"
-          >
-            查看批量任务（草稿 {{ appStore.batchDraftItems.length }}）
-          </el-button>
-
-          <el-button
             v-if="!claimRequired"
             :disabled="(!selectedAccount && selectedAccount !== 0) || downloadBlocked || isDirectLinkDownloading"
             :loading="isDirectLinkDownloading"
@@ -865,58 +842,6 @@ const addLog = (message) => {
 const goToAccountTab = () => {
  const appStore = useAppStore()
  appStore.activeTab = 'settings'
-}
-
-// 跳转到批量下载标签页
-const goToBatchTab = () => {
- appStore.activeTab = 'batch'
-}
-
-// 添加当前选择到批量下载草稿
-const addToBatchDraft = () => {
- const account = accounts.value[selectedAccount.value]
- if (!account?.email) {
- ElMessage.warning('请先选择已登录账号')
- return
- }
- if (!appid.value) {
- ElMessage.warning('请先填写 APPID')
- return
- }
-
- const app = props.selectedApp || {}
- const appName = app.trackName || appid.value
-
- const verObj = versions.value.find(v => v.external_identifier === selectedVersion.value)
- const versionLabel = selectedVersion.value
- ? (verObj ? `${verObj.bundle_version} | ${verObj.created_at}` : String(selectedVersion.value))
- : '最新版本'
-
- const result = appStore.addBatchDraftItem({
- app_id: String(appid.value).trim(),
- app_name: appName,
- version: selectedVersion.value || null,
- version_label: versionLabel,
- account_email: account.email,
- account_region: account.region || 'US',
- })
-
- if (result.updated) {
-  ElMessage.success('已更新批量草稿项')
- } else if (result.added) {
-  ElMessage.success('已添加到批量下载草稿，可继续搜索下一个应用')
- }
-
- // 为下一次搜索准备：清除当前选择并滚动到顶部聚焦搜索框
- emit('app-selected', null)
- showProgress.value = false
- searchQuery.value = ''
- searchResults.value = []
- window.scrollTo({ top: 0, behavior: 'smooth' })
- setTimeout(() => {
-  const input = document.querySelector('.search-input input')
-  if (input) input.focus()
- }, 200)
 }
 
 // Search functionality - 使用所选账号的区域
@@ -1506,7 +1431,7 @@ const startDownloadWithProgress = async (autoPurchase = false) => {
  const { jobId } = data
  addLog(`[进度] 任务已创建：${jobId}`)
 
- // 添加到队列 — 把 selectedApp 的图标/名称/开发者展平到顶层，供 DownloadQueue 直接渲染
+ // 添加到队列 — 把 selectedApp 的图标/名称/开发者展平到顶层，供 IpaManager 直接渲染
  const app = props.selectedApp || {}
  const queueItem = {
  id: jobId,
