@@ -4032,8 +4032,10 @@ async fn get_archive_apps() -> impl Responder {
 async fn add_archive_app(body: web::Json<AddArchiveRequest>) -> impl Responder {
     let archive_dir = resolve_archive_dir();
     if let Err(error) = std::fs::create_dir_all(&archive_dir) {
-        return HttpResponse::InternalServerError()
-            .json(ApiResponse::<()>::error(format!("创建收藏目录失败: {}", error)));
+        return HttpResponse::InternalServerError().json(ApiResponse::<()>::error(format!(
+            "创建收藏目录失败: {}",
+            error
+        )));
     }
 
     let app = ArchiveApp {
@@ -4054,8 +4056,10 @@ async fn add_archive_app(body: web::Json<AddArchiveRequest>) -> impl Responder {
             Err(error) => HttpResponse::InternalServerError()
                 .json(ApiResponse::<()>::error(format!("保存收藏失败: {}", error))),
         },
-        Err(error) => HttpResponse::InternalServerError()
-            .json(ApiResponse::<()>::error(format!("序列化收藏失败: {}", error))),
+        Err(error) => HttpResponse::InternalServerError().json(ApiResponse::<()>::error(format!(
+            "序列化收藏失败: {}",
+            error
+        ))),
     }
 }
 
@@ -4080,7 +4084,9 @@ async fn get_delisted_apps() -> impl Responder {
     match client.get(url).send().await {
         Ok(resp) => match resp.json::<Value>().await {
             Ok(data) => HttpResponse::Ok().json(ApiResponse::success(data)),
-            Err(_) => HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({ "apps": [] }))),
+            Err(_) => {
+                HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({ "apps": [] })))
+            }
         },
         Err(_) => HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({ "apps": [] }))),
     }
@@ -4162,6 +4168,8 @@ async fn main() -> std::io::Result<()> {
                             .route("/download-records/{id}/file", web::delete().to(cleanup_download_record_file))
                             .route("/ipa-files/{id}/download", web::get().to(download_ipa_file)),
                     )
+                    // 公开归档数据（不依赖管理员登录）
+                    .route("/archive/delisted", web::get().to(get_delisted_apps))
                     // 需要管理员认证的路由
                     .service(
                         web::scope("")
@@ -4200,8 +4208,7 @@ async fn main() -> std::io::Result<()> {
                             .route("/check-updates", web::get().to(check_updates))
                             .route("/archive", web::get().to(get_archive_apps))
                             .route("/archive", web::post().to(add_archive_app))
-                            .route("/archive/{id}", web::delete().to(remove_archive_app))
-                            .route("/archive/delisted", web::get().to(get_delisted_apps)),
+                            .route("/archive/{id}", web::delete().to(remove_archive_app)),
                     ),
             )
             // 托管前端静态文件

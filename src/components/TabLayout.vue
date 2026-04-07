@@ -275,6 +275,7 @@ onUnmounted(() => {
 }
 
 .tab-content.with-mobile-tabs {
-  padding-bottom: calc(49px + env(safe-area-inset-bottom) + var(--space-3));
+  /* Must match the actual fixed mobile tab bar height */
+  padding-bottom: calc(var(--size-tab-mobile) + env(safe-area-inset-bottom) + var(--space-3));
 }
 </style>
