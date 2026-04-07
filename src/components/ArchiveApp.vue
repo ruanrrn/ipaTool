@@ -77,7 +77,7 @@
                 placeholder="选择版本"
                 class="archive-version-select"
                 :loading="loadingVersions[app.id]"
-                @click.stop
+                @click.stop="prepareApp(app)"
                 @change="(value) => setSelectedVersion(app.id, value)"
               >
                 <el-option
@@ -155,7 +155,7 @@
                 placeholder="选择版本"
                 class="archive-version-select"
                 :loading="loadingVersions[app.id]"
-                @click.stop
+                @click.stop="prepareApp(app)"
                 @change="(value) => setSelectedVersion(app.id, value)"
               >
                 <el-option
@@ -367,10 +367,13 @@ const refreshAll = async () => {
 }
 
 const prepareApp = async (app) => {
+  const cachedVersions = loadedVersionsByApp.value[app.id]
+  if (cachedVersions?.length) return
   if (loadingVersions.value[app.id]) return
   loadingVersions.value = { ...loadingVersions.value, [app.id]: true }
   try {
-    const response = await fetch(`${API_BASE}/versions?appid=${encodeURIComponent(app.id)}&region=US`, { credentials: 'include' })
+    const region = activeAccount.value?.region || 'US'
+    const response = await fetch(`${API_BASE}/versions?appid=${encodeURIComponent(app.id)}&region=${encodeURIComponent(region)}`, { credentials: 'include' })
     const data = await response.json()
     if (data.ok && Array.isArray(data.data) && data.data.length) {
       const versions = sortVersionsDesc(data.data.map(normalizeVersion).filter(Boolean))
@@ -504,8 +507,30 @@ onMounted(refreshAll)
   max-width: 100%;
 }
 
+/* Archive list rows: don't rely on IpaManager's scoped styles */
 .archive-row {
   cursor: pointer;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.artifact-title {
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.artifact-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3-5);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
 }
 
 .archive-main {
@@ -530,6 +555,10 @@ onMounted(refreshAll)
   flex-wrap: wrap;
 }
 
+.archive-actions :deep(.el-button) {
+  margin: 0;
+}
+
 .archive-version-select {
   width: 220px;
   max-width: 100%;
@@ -550,9 +579,20 @@ onMounted(refreshAll)
     align-items: flex-start;
   }
 
+  /* Give the artwork + content room on narrow screens */
+  .archive-row {
+    padding: var(--space-3);
+  }
+
   .archive-actions {
     display: grid;
     grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .archive-actions :deep(.el-button) {
+    width: 100%;
+    justify-content: center;
   }
 
   .archive-version-select,
