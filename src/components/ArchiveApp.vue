@@ -52,7 +52,7 @@
       <div v-else class="space-y-3">
         <div
           v-for="app in favorites"
-          :key="`favorite-${app.id}`"
+          :key="app.archive_key"
           class="artifact-row archive-row"
           @click="prepareApp(app)"
         >
@@ -71,14 +71,14 @@
 
             <div class="archive-actions">
               <el-select
-                :model-value="selectedVersionByApp[app.id] || ''"
+                :model-value="selectedVersionByApp[app.archive_key] || ''"
                 size="small"
                 filterable
                 placeholder="选择版本"
                 class="archive-version-select"
-                :loading="loadingVersions[app.id]"
+                :loading="loadingVersions[app.archive_key]"
                 @click.stop="prepareApp(app)"
-                @change="(value) => setSelectedVersion(app.id, value)"
+                @change="(value) => setSelectedVersion(app.archive_key, value)"
               >
                 <el-option
                   v-for="version in getVersionOptions(app)"
@@ -90,7 +90,7 @@
               <el-button
                 type="primary"
                 size="small"
-                :loading="downloadingAppId === app.id"
+                :loading="downloadingArchiveKey === app.archive_key"
                 @click.stop="downloadArchivedApp(app)"
               >
                 <template #icon>
@@ -129,7 +129,7 @@
       <div v-else class="space-y-3">
         <div
           v-for="app in delistedApps"
-          :key="`delisted-${app.id}`"
+          :key="app.archive_key"
           class="artifact-row archive-row"
           @click="prepareApp(app)"
         >
@@ -149,14 +149,14 @@
 
             <div class="archive-actions">
               <el-select
-                :model-value="selectedVersionByApp[app.id] || ''"
+                :model-value="selectedVersionByApp[app.archive_key] || ''"
                 size="small"
                 filterable
                 placeholder="选择版本"
                 class="archive-version-select"
-                :loading="loadingVersions[app.id]"
+                :loading="loadingVersions[app.archive_key]"
                 @click.stop="prepareApp(app)"
-                @change="(value) => setSelectedVersion(app.id, value)"
+                @change="(value) => setSelectedVersion(app.archive_key, value)"
               >
                 <el-option
                   v-for="version in getVersionOptions(app)"
@@ -168,7 +168,7 @@
               <el-button
                 type="primary"
                 size="small"
-                :loading="downloadingAppId === app.id"
+                :loading="downloadingArchiveKey === app.archive_key"
                 @click.stop="downloadArchivedApp(app)"
               >
                 <template #icon>
@@ -200,7 +200,7 @@ const delistedApps = ref([])
 const favoritesLoading = ref(false)
 const delistedLoading = ref(false)
 const refreshing = ref(false)
-const downloadingAppId = ref('')
+const downloadingArchiveKey = ref('')
 const selectedVersionByApp = ref({})
 const loadedVersionsByApp = ref({})
 const loadingVersions = ref({})
@@ -245,17 +245,30 @@ const normalizeVersion = (version) => {
   }
 }
 
-const normalizeArchiveApp = (app, delisted = false) => ({
-  id: String(app?.id ?? app?.app_id ?? app?.trackId ?? ''),
-  name: app?.name ?? app?.app_name ?? app?.trackName ?? '未知应用',
-  icon_url: app?.icon_url ?? app?.artworkUrl ?? app?.artworkUrl100 ?? app?.artworkUrl60 ?? '',
-  bundle_id: app?.bundle_id ?? app?.bundleId ?? '',
-  artist_name: app?.artist_name ?? app?.artistName ?? '',
-  versions: Array.isArray(app?.versions) ? app.versions.map(normalizeVersion).filter(Boolean) : [],
-  delisted: app?.delisted ?? delisted,
-  added_at: app?.added_at ?? app?.updated_at ?? app?.created_at ?? '',
-  added_by: app?.added_by ?? ''
-})
+const getArchiveAppKey = (app) => {
+  const id = String(app?.id ?? app?.app_id ?? app?.trackId ?? '')
+  const bundleId = String(app?.bundle_id ?? app?.bundleId ?? '')
+  const kind = (app?.delisted ?? false) ? 'delisted' : 'favorite'
+  return `${kind}:${id}:${bundleId}`
+}
+
+const normalizeArchiveApp = (app, delisted = false) => {
+  const normalized = {
+    id: String(app?.id ?? app?.app_id ?? app?.trackId ?? ''),
+    name: app?.name ?? app?.app_name ?? app?.trackName ?? '未知应用',
+    icon_url: app?.icon_url ?? app?.artworkUrl ?? app?.artworkUrl100 ?? app?.artworkUrl60 ?? '',
+    bundle_id: app?.bundle_id ?? app?.bundleId ?? '',
+    artist_name: app?.artist_name ?? app?.artistName ?? '',
+    versions: Array.isArray(app?.versions) ? app.versions.map(normalizeVersion).filter(Boolean) : [],
+    delisted: app?.delisted ?? delisted,
+    added_at: app?.added_at ?? app?.updated_at ?? app?.created_at ?? '',
+    added_by: app?.added_by ?? ''
+  }
+  return {
+    ...normalized,
+    archive_key: getArchiveAppKey(normalized)
+  }
+}
 
 const normalizeDelistedPayload = (payload) => {
   if (Array.isArray(payload)) return payload
@@ -267,15 +280,15 @@ const normalizeDelistedPayload = (payload) => {
 const sortVersionsDesc = (items) => [...items].sort((a, b) => String(b.version).localeCompare(String(a.version), undefined, { numeric: true, sensitivity: 'base' }))
 
 const getVersionOptions = (app) => {
-  const loaded = loadedVersionsByApp.value[app.id]
+  const loaded = loadedVersionsByApp.value[app.archive_key]
   if (loaded?.length) return loaded
   return sortVersionsDesc(app.versions || [])
 }
 
-const setSelectedVersion = (appId, versionId) => {
+const setSelectedVersion = (archiveKey, versionId) => {
   selectedVersionByApp.value = {
     ...selectedVersionByApp.value,
-    [appId]: versionId
+    [archiveKey]: versionId
   }
 }
 
@@ -317,9 +330,9 @@ const applyVersionDefaults = (apps) => {
   for (const app of apps) {
     const options = getVersionOptions(app)
     if (options.length) {
-      nextLoaded[app.id] = options
-      if (!nextSelected[app.id]) {
-        nextSelected[app.id] = options[0].version_id
+      nextLoaded[app.archive_key] = options
+      if (!nextSelected[app.archive_key]) {
+        nextSelected[app.archive_key] = options[0].version_id
       }
     }
   }
@@ -367,10 +380,11 @@ const refreshAll = async () => {
 }
 
 const prepareApp = async (app) => {
-  const cachedVersions = loadedVersionsByApp.value[app.id]
+  const key = app.archive_key
+  const cachedVersions = loadedVersionsByApp.value[key]
   if (cachedVersions?.length) return
-  if (loadingVersions.value[app.id]) return
-  loadingVersions.value = { ...loadingVersions.value, [app.id]: true }
+  if (loadingVersions.value[key]) return
+  loadingVersions.value = { ...loadingVersions.value, [key]: true }
   try {
     const region = activeAccount.value?.region || 'US'
     const response = await fetch(`${API_BASE}/versions?appid=${encodeURIComponent(app.id)}&region=${encodeURIComponent(region)}`, { credentials: 'include' })
@@ -379,10 +393,10 @@ const prepareApp = async (app) => {
       const versions = sortVersionsDesc(data.data.map(normalizeVersion).filter(Boolean))
       loadedVersionsByApp.value = {
         ...loadedVersionsByApp.value,
-        [app.id]: versions
+        [key]: versions
       }
-      if (!selectedVersionByApp.value[app.id] && versions[0]) {
-        setSelectedVersion(app.id, versions[0].version_id)
+      if (!selectedVersionByApp.value[key] && versions[0]) {
+        setSelectedVersion(key, versions[0].version_id)
       }
     } else if (!getVersionOptions(app).length) {
       ElMessage.warning('未获取到可用版本')
@@ -392,7 +406,7 @@ const prepareApp = async (app) => {
       ElMessage.warning(error.message || '加载版本失败')
     }
   } finally {
-    loadingVersions.value = { ...loadingVersions.value, [app.id]: false }
+    loadingVersions.value = { ...loadingVersions.value, [key]: false }
   }
 }
 
@@ -423,14 +437,15 @@ const removeFavorite = async (app) => {
 const downloadArchivedApp = async (app) => {
   try {
     const account = await requireActiveAccount()
-    let selectedVersion = selectedVersionByApp.value[app.id]
+    const key = app.archive_key
+    let selectedVersion = selectedVersionByApp.value[key]
     if (!selectedVersion) {
       await prepareApp(app)
-      selectedVersion = selectedVersionByApp.value[app.id]
+      selectedVersion = selectedVersionByApp.value[key]
     }
     if (!selectedVersion) throw new Error('请先选择版本')
 
-    downloadingAppId.value = app.id
+    downloadingArchiveKey.value = key
     const versionInfo = getVersionOptions(app).find((item) => item.version_id === selectedVersion)
     const response = await fetch(`${API_BASE}/start-download-direct`, {
       method: 'POST',
@@ -472,7 +487,7 @@ const downloadArchivedApp = async (app) => {
   } catch (error) {
     ElMessage.error(error.message || '下载失败')
   } finally {
-    downloadingAppId.value = ''
+    downloadingArchiveKey.value = ''
   }
 }
 
@@ -574,6 +589,12 @@ onMounted(refreshAll)
 }
 
 @media (max-width: 767px) {
+  .archive-toolbar,
+  .archive-toolbar-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .archive-top {
     flex-direction: column;
     align-items: flex-start;
