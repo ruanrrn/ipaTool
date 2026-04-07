@@ -65,6 +65,9 @@
                   <span>{{ app.bundle_id || 'Bundle ID 未知' }}</span>
                   <span>收藏于 {{ formatDateTime(app.added_at) }}</span>
                 </div>
+                <div v-if="integrityWarnings[app.archive_key]" class="archive-warning">
+                  {{ integrityWarnings[app.archive_key] }}
+                </div>
               </div>
               <el-tag size="small" type="success">已收藏</el-tag>
             </div>
@@ -143,6 +146,9 @@
                   <span v-if="app.artist_name">{{ app.artist_name }}</span>
                   <span v-if="app.added_at">收录于 {{ formatDateTime(app.added_at) }}</span>
                 </div>
+                <div v-if="integrityWarnings[app.archive_key]" class="archive-warning">
+                  {{ integrityWarnings[app.archive_key] }}
+                </div>
               </div>
               <el-tag size="small" type="warning">已下架</el-tag>
             </div>
@@ -204,6 +210,7 @@ const downloadingArchiveKey = ref('')
 const selectedVersionByApp = ref({})
 const loadedVersionsByApp = ref({})
 const loadingVersions = ref({})
+const integrityWarnings = ref({})
 const accounts = ref([])
 const selectedAccountIndex = ref(null)
 
@@ -386,6 +393,11 @@ const prepareApp = async (app) => {
   if (loadingVersions.value[key]) return
   loadingVersions.value = { ...loadingVersions.value, [key]: true }
   try {
+    const identity = await verifyArchiveIdentity(app)
+    if (!identity.ok) {
+      ElMessage.error(identity.message || '归档数据校验失败，已阻止错误版本加载')
+      return
+    }
     const region = activeAccount.value?.region || 'US'
     const response = await fetch(`${API_BASE}/versions?appid=${encodeURIComponent(app.id)}&region=${encodeURIComponent(region)}`, { credentials: 'include' })
     const data = await response.json()
@@ -408,6 +420,31 @@ const prepareApp = async (app) => {
   } finally {
     loadingVersions.value = { ...loadingVersions.value, [key]: false }
   }
+}
+
+const verifyArchiveIdentity = async (app) => {
+  if (!app?.id || !app?.bundle_id) return { ok: true }
+  const region = activeAccount.value?.region || 'US'
+  const response = await fetch(`${API_BASE}/app-meta?appid=${encodeURIComponent(app.id)}&region=${encodeURIComponent(region)}`, { credentials: 'include' })
+  const data = await response.json().catch(() => null)
+  if (!response.ok || !data?.ok || !data?.data) {
+    return { ok: true }
+  }
+  const remoteBundleId = data.data.bundleId || data.data.bundle_id || ''
+  if (remoteBundleId && remoteBundleId !== app.bundle_id) {
+    const message = `归档数据疑似串号：当前条目 bundle=${app.bundle_id}，但 App ID ${app.id} 查询结果是 ${remoteBundleId}`
+    integrityWarnings.value = {
+      ...integrityWarnings.value,
+      [app.archive_key]: message
+    }
+    return { ok: false, message, remote: data.data }
+  }
+  if (integrityWarnings.value[app.archive_key]) {
+    const next = { ...integrityWarnings.value }
+    delete next[app.archive_key]
+    integrityWarnings.value = next
+  }
+  return { ok: true, remote: data.data }
 }
 
 const requireActiveAccount = async () => {
@@ -437,6 +474,10 @@ const removeFavorite = async (app) => {
 const downloadArchivedApp = async (app) => {
   try {
     const account = await requireActiveAccount()
+    const identity = await verifyArchiveIdentity(app)
+    if (!identity.ok) {
+      throw new Error(identity.message || '归档数据校验失败，已阻止错误下载')
+    }
     const key = app.archive_key
     let selectedVersion = selectedVersionByApp.value[key]
     if (!selectedVersion) {
@@ -546,6 +587,12 @@ onMounted(refreshAll)
   gap: var(--space-2) var(--space-3-5);
   font-size: var(--font-size-sm);
   color: var(--text-secondary);
+}
+
+.archive-warning {
+  font-size: var(--font-size-xs);
+  color: var(--accent-red);
+  line-height: 1.5;
 }
 
 .archive-main {
