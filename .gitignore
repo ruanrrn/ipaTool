@@ -33,7 +33,7 @@ data/
 *.sw?
 
 # Build outputs
-dist/
+/dist/
 build/
 *.log
 
