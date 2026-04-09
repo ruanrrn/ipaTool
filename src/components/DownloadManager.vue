@@ -1290,7 +1290,7 @@ const preflightPurchaseGate = async (account, modeLabel, retryFn) => {
  `下载前购买状态校验失败：${payload.error || '状态未知'}。为避免错误下载，已中止。`,
  '无法开始下载',
  {
- confirmButtonText: '知道了',
+ confirmButtonText: '确认',
  type: 'warning',
  lockScroll: false
  }
@@ -1302,7 +1302,7 @@ const preflightPurchaseGate = async (account, modeLabel, retryFn) => {
  `下载前购买状态校验失败：${error.message || error}`,
  '无法开始下载',
  {
- confirmButtonText: '知道了',
+ confirmButtonText: '确认',
  type: 'warning',
  lockScroll: false
  }
@@ -1320,7 +1320,7 @@ const buyOrClaimSelectedApp = async () => {
 
  if (price === null) {
  await ElMessageBox.alert('价格未知，无法安全领取/购买。请先在搜索结果确认价格信息。', '无法领取', {
- confirmButtonText: '知道了',
+ confirmButtonText: '确认',
  type: 'warning',
  lockScroll: false
  })
@@ -1329,7 +1329,7 @@ const buyOrClaimSelectedApp = async () => {
 
  if (price > 0) {
  await ElMessageBox.alert('这是付费应用，请先在 App Store 购买。购买完成后页面会自动恢复下载按钮。', '需要先购买', {
- confirmButtonText: '知道了',
+ confirmButtonText: '确认',
  type: 'warning',
  lockScroll: false
  })
@@ -1342,7 +1342,7 @@ const buyOrClaimSelectedApp = async () => {
  `免费应用「${appName}」请先在官方 App Store 点击“获取”。完成后回到此页面刷新状态，再选择“直链下载”或“下载到服务器”。`,
  '请先到 App Store 获取',
  {
- confirmButtonText: '打开 App Store',
+ confirmButtonText: '确认',
  type: 'info',
  lockScroll: false
  }
@@ -1366,7 +1366,7 @@ const handleNeedsPurchase = async (retryFn, modeLabel, account = null) => {
  `应用：${appName}\n价格：未知\n账号：${accountEmail}\n区域：${accountRegion}\n\n当前无法确认该应用是否免费。为避免误触发付费购买，请先在搜索结果中确认价格；若为付费应用，请先在 App Store 完成购买。`,
  '无法自动购买',
  {
- confirmButtonText: '知道了',
+ confirmButtonText: '确认',
  type: 'warning',
  lockScroll: false
  }
@@ -1380,7 +1380,7 @@ const handleNeedsPurchase = async (retryFn, modeLabel, account = null) => {
  `应用：${appName}\n价格：${getSelectedAppPriceLabel()}\n账号：${accountEmail}\n区域：${accountRegion}\n\n这是付费应用，当前不会自动触发购买。请先在 App Store 完成购买后，再回来下载。`,
  '付费应用无法自动购买',
  {
- confirmButtonText: '知道了',
+ confirmButtonText: '确认',
  type: 'warning',
  lockScroll: false
  }
@@ -1393,7 +1393,7 @@ const handleNeedsPurchase = async (retryFn, modeLabel, account = null) => {
  `应用：${appName}\n价格：免费\n账号：${accountEmail}\n区域：${accountRegion}\n\n该应用是免费应用，但当前账号尚未领取。是否现在触发购买（领取）并继续下载？`,
  '免费应用需要先领取',
  {
- confirmButtonText: '领取并下载',
+ confirmButtonText: '确认',
  cancelButtonText: '取消',
  type: 'warning',
  lockScroll: false
@@ -1838,8 +1838,8 @@ const installDownloadedIpa = async () => {
  '无法开始 OTA 安装',
  {
  distinguishCancelAndClose: true,
- confirmButtonText: '直接下载文件',
- cancelButtonText: '取消操作',
+ confirmButtonText: '确认',
+ cancelButtonText: '取消',
  type: 'warning',
  center: true,
  lockScroll: false
@@ -1865,7 +1865,7 @@ const installDownloadedIpa = async () => {
  '当前是 localhost 环境。按 OpenList / Oplist 文档，OTA 安装需要 HTTPS + 有效证书；localhost 基本不会成功。若你只是想继续试一把可以继续，否则请先切到 HTTPS 域名。',
  '安装前检查',
  {
- confirmButtonText: '继续尝试',
+ confirmButtonText: '确认',
  cancelButtonText: '取消',
  type: 'info',
  lockScroll: false

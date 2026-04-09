@@ -438,19 +438,88 @@
   color: var(--text-primary) !important;
 }
 
+.el-overlay,
+.el-overlay-dialog {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+}
+
+.el-overlay {
+  background: color-mix(in srgb, var(--overlay) 72%, transparent) !important;
+  backdrop-filter: blur(2px);
+}
+
+.el-message-box {
+  width: min(92vw, 420px) !important;
+  max-width: min(92vw, 420px) !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
 .el-card__body,
 .el-dialog__body,
-.el-message-box__content,
 .el-drawer__body {
   padding: var(--space-4) !important;
 }
 
+.el-message-box__header {
+  padding: var(--space-5) var(--space-5) var(--space-3) !important;
+}
+
+.el-message-box__content {
+  padding: 0 var(--space-5) var(--space-4) !important;
+}
+
 .el-dialog__header,
 .el-dialog__footer,
-.el-message-box__header,
 .el-message-box__btns {
   padding: var(--space-4) !important;
   border-color: var(--separator) !important;
+}
+
+.el-message-box__container {
+  display: grid !important;
+  gap: var(--space-3) !important;
+  align-items: start !important;
+}
+
+.el-message-box__status {
+  position: static !important;
+  margin: 2px 0 0 !important;
+  font-size: 18px !important;
+}
+
+.el-message-box__message {
+  margin: 0 !important;
+  line-height: 1.6 !important;
+  color: var(--text-secondary) !important;
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+}
+
+.el-message-box__message p {
+  margin: 0 !important;
+}
+
+.el-message-box__btns {
+  display: flex !important;
+  justify-content: flex-end !important;
+  gap: var(--space-2) !important;
+  padding-top: var(--space-3) !important;
+}
+
+.el-message-box__btns .el-button {
+  min-width: 88px;
+  margin-left: 0 !important;
+}
+
+.message-box-danger .el-message-box__btns .el-button--primary,
+.message-box-danger .el-message-box__btns .danger-confirm-button {
+  background: var(--accent-red) !important;
+  border-color: var(--accent-red) !important;
+  color: var(--text-inverse) !important;
 }
 
 .el-input__wrapper,
@@ -531,7 +600,6 @@
 .el-badge__content,
 .el-message,
 .el-message-box__title,
-.el-message-box__message,
 .el-notification__title,
 .el-notification__content {
   color: var(--text-primary) !important;
@@ -615,7 +683,52 @@
   background-color: var(--separator) !important;
 }
 
+
+.dialog-message-card {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-3-5);
+  background: var(--surface-muted);
+  border: var(--border-width-thin) solid var(--separator);
+  border-radius: var(--radius-field);
+}
+
+.dialog-message-card__label {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+
+.dialog-message-card__value {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
 @media (max-width: 767px) {
+  .el-message-box {
+    width: min(calc(100vw - 24px), 420px) !important;
+    max-width: min(calc(100vw - 24px), 420px) !important;
+  }
+
+  .el-message-box__header {
+    padding: var(--space-4) var(--space-4) var(--space-2) !important;
+  }
+
+  .el-message-box__content {
+    padding: 0 var(--space-4) var(--space-4) !important;
+  }
+
+  .el-message-box__btns {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .el-message-box__btns .el-button {
+    width: 100%;
+    min-width: 0;
+  }
+
   .card,
   .task-card,
   .account-header,

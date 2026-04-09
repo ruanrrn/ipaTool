@@ -461,7 +461,7 @@ const removeAccount = async (accountOrIndex, indexArg) => {
 			'确认删除',
 			{
 				type: 'error',
-				confirmButtonText: '删除',
+				confirmButtonText: '确认',
 				cancelButtonText: '取消',
 				confirmButtonClass: 'danger-confirm-button',
 				lockScroll: false,

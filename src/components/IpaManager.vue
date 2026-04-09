@@ -173,14 +173,15 @@
     >
       <div class="space-y-3 text-sm">
         <p class="text-primary">确定删除这个 IPA 文件吗？</p>
-        <div v-if="pendingDeleteItem" class="inline-panel text-xs text-secondary break-all">
-          <div class="font-medium text-primary">{{ pendingDeleteItem.appName }}</div>
+        <div v-if="pendingDeleteItem" class="dialog-message-card">
+          <div class="dialog-message-card__label">文件名称</div>
+          <div class="dialog-message-card__value">{{ pendingDeleteItem.appName }}</div>
         </div>
       </div>
       <template #footer>
         <div class="flex justify-end gap-2">
           <el-button :disabled="deletingArtifact" @click="closeDeleteDialog">取消</el-button>
-          <el-button type="danger" :loading="deletingArtifact" @click="confirmDeleteArtifact">删除</el-button>
+          <el-button type="danger" :loading="deletingArtifact" @click="confirmDeleteArtifact">确认</el-button>
         </div>
       </template>
     </el-dialog>
@@ -355,7 +356,7 @@ const removeTask = async (id) => {
       await ElMessageBox.confirm(
         `任务「${task.appName || '未知'}」仍在进行中，确定取消吗？`,
         '确认取消任务',
-        { type: 'error', confirmButtonText: '取消任务', cancelButtonText: '继续等待', confirmButtonClass: 'danger-confirm-button', lockScroll: false }
+        { type: 'error', confirmButtonText: '确认', cancelButtonText: '取消', confirmButtonClass: 'danger-confirm-button', lockScroll: false }
       )
     } catch { return }
   }
@@ -438,7 +439,7 @@ const removeSelectedArtifacts = async () => {
   if (selectedIds.value.length === 0) return
   try {
     await ElMessageBox.confirm(`确定批量清理 ${selectedIds.value.length} 个安装包吗？`, '确认批量清理', {
-      type: 'error', confirmButtonText: '批量清理', cancelButtonText: '取消', confirmButtonClass: 'danger-confirm-button', lockScroll: false
+      type: 'error', confirmButtonText: '确认', cancelButtonText: '取消', confirmButtonClass: 'danger-confirm-button', lockScroll: false
     })
     for (const id of [...selectedIds.value]) { await deleteArtifactById(id) }
     ElMessage.success(`已清理 ${selectedIds.value.length} 个安装包`)

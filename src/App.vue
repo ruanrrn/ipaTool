@@ -109,7 +109,7 @@ function onLoginSuccess() {
 async function handleLogout() {
  try {
    await ElMessageBox.confirm('确定要退出登录吗？', '退出确认', {
-     confirmButtonText: '退出',
+     confirmButtonText: '确认',
      cancelButtonText: '取消',
      type: 'error',
      confirmButtonClass: 'danger-confirm-button',
