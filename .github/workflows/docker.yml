@@ -142,7 +142,9 @@ jobs:
   version-error:
     name: Version Validation Error
     needs: extract-version
-    if: needs.extract-version.outputs.should_build == 'false'
+    if: |
+      needs.extract-version.outputs.should_build == 'false' &&
+      needs.extract-version.outputs.error_message != ''
     runs-on: ubuntu-latest
     steps:
       - name: Display error
