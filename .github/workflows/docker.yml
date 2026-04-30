@@ -97,7 +97,7 @@ jobs:
           echo "📦 Package version: ${PACKAGE_VERSION}"
 
           # 比较版本号（目标版本必须 >= package.json 版本）
-          HIGHER=$(printf '%s\n%s\n' "${VERSION}" "${PACKAGE_VERSION}" | sort -VC | tail -1)
+          HIGHER=$(printf '%s\n%s\n' "${VERSION}" "${PACKAGE_VERSION}" | sort -V | tail -1)
           if [ "${HIGHER}" != "${VERSION}" ]; then
             echo "❌ Error: Target version ${VERSION} < package version ${PACKAGE_VERSION}"
             echo "should_build=false" >> $GITHUB_OUTPUT
