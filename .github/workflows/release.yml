@@ -1,0 +1,151 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v2.3.0 or 2.3.0)'
+        required: true
+        type: string
+        default: ''
+      draft:
+        description: 'Create as draft release'
+        required: false
+        default: false
+        type: boolean
+  push:
+    branches:
+      - main
+    paths:
+      - 'package.json'
+
+jobs:
+  detect-version:
+    name: Detect Version Change
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check version change
+        id: check
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            INPUT="${{ inputs.version }}"
+            VERSION="${INPUT#v}"
+            echo "Manual trigger: version=${VERSION}"
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          else
+            CURRENT=$(node -p "require('./package.json').version")
+            PREVIOUS=$(git show HEAD^:package.json | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version" 2>/dev/null || echo "")
+            echo "Current: ${CURRENT}, Previous: ${PREVIOUS}"
+            if [ "${CURRENT}" != "${PREVIOUS}" ]; then
+              echo "Version changed: ${PREVIOUS} -> ${CURRENT}"
+              echo "should_release=true" >> $GITHUB_OUTPUT
+              echo "version=${CURRENT}" >> $GITHUB_OUTPUT
+            else
+              echo "No version change detected"
+              echo "should_release=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+  build:
+    name: Build Release Assets
+    needs: detect-version
+    if: needs.detect-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+    env:
+      VERSION: ${{ needs.detect-version.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cross-compilation deps (ARM64)
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Build Rust binary
+        working-directory: server
+        run: |
+          cargo build --release --target ${{ matrix.target }}
+
+      - name: Package
+        id: package
+        run: |
+          if [ "${{ matrix.target }}" = "x86_64-unknown-linux-gnu" ]; then
+            ARCH="amd64"
+          else
+            ARCH="arm64"
+          fi
+          PKG_NAME="ipatool-${VERSION}-linux-${ARCH}"
+          mkdir -p "${PKG_NAME}"
+          cp server/target/${{ matrix.target }}/release/server "${PKG_NAME}/"
+          cp -r dist/ "${PKG_NAME}/dist/"
+
+          cat > "${PKG_NAME}/start.sh" << 'STARTSCRIPT'
+          #!/bin/bash
+          cd "$(dirname "$0")"
+          exec ./server
+          STARTSCRIPT
+          chmod +x "${PKG_NAME}/start.sh"
+
+          tar czf "${PKG_NAME}.tar.gz" "${PKG_NAME}"
+          echo "package=${PKG_NAME}.tar.gz" >> $GITHUB_OUTPUT
+          echo "name=${PKG_NAME}" >> $GITHUB_OUTPUT
+          ls -lh "${PKG_NAME}.tar.gz"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.package.outputs.name }}
+          path: ${{ steps.package.outputs.package }}
+
+  release:
+    name: Create GitHub Release
+    needs: [detect-version, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.detect-version.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: v${{ env.VERSION }}
+          draft: ${{ github.event_name == 'workflow_dispatch' && inputs.draft || false }}
+          generate_release_notes: true
+          files: artifacts/**/*.tar.gz

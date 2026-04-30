@@ -27,7 +27,7 @@ on:
         type: boolean
   push:
     tags:
-      - '*.*.*'
+      - 'v*.*.*'
   repository_dispatch:
     types: [version-changed]
   pull_request:
@@ -37,7 +37,7 @@ on:
     paths:
       - 'Dockerfile'
       - 'server/**'
-      - 'src/**'
+      - 'frontend/**'
       - 'package.json'
 
 env:
@@ -45,95 +45,104 @@ env:
   IMAGE_NAME: ipatool
 
 jobs:
-  validate-version:
-    name: Validate Version
+  extract-version:
+    name: Extract Version
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
     outputs:
-      should_build: ${{ steps.validate.outputs.should_build }}
-      version: ${{ steps.validate.outputs.version }}
-      error_message: ${{ steps.validate.outputs.error_message }}
+      should_build: ${{ steps.extract.outputs.should_build }}
+      version: ${{ steps.extract.outputs.version }}
+      error_message: ${{ steps.extract.outputs.error_message }}
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Validate version input
-        id: validate
+      - name: Extract version
+        id: extract
         run: |
-          # 获取输入的版本号
-          INPUT_VERSION="${{ inputs.version }}"
-          
-          echo "📝 Input version: ${INPUT_VERSION}"
-          
-          # 验证版本号格式（必须以 v 开头）
-          if [[ ! "${INPUT_VERSION}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "❌ Error: Version must start with 'v' and follow semver format (e.g., v1.0.0)"
-            echo "should_build=false" >> $GITHUB_OUTPUT
-            echo "error_message=Invalid version format. Expected format: v1.0.0" >> $GITHUB_OUTPUT
-            exit 1
+          # 确定版本号来源
+          if [ "${{ github.event_name }}" = "push" ]; then
+            # 从 tag 名提取版本号（去掉 v 前缀）
+            TAG_NAME="${{ github.ref_name }}"
+            VERSION="${TAG_NAME#v}"
+            echo "📌 Tag push detected: ${TAG_NAME} → version ${VERSION}"
+          elif [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            # repository_dispatch 通过 client_payload 传递版本号
+            VERSION="${{ github.event.client_payload.version }}"
+            echo "📡 Repository dispatch: version ${VERSION}"
+          else
+            # workflow_dispatch 使用输入参数
+            INPUT_VERSION="${{ inputs.version }}"
+            echo "📝 Manual trigger: ${INPUT_VERSION}"
+            VERSION="${INPUT_VERSION#v}"
           fi
           
-          # 去掉 v 前缀进行比较
-          VERSION_NUMBER="${INPUT_VERSION#v}"
+          # 验证版本号格式
+          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "❌ Error: Invalid version format. Expected: x.y.z (e.g., 2.2.0)"
+            echo "should_build=false" >> $GITHUB_OUTPUT
+            echo "error_message=Invalid version format. Expected: x.y.z" >> $GITHUB_OUTPUT
+            exit 1
+          fi
           
           # 从 package.json 读取当前版本号
           PACKAGE_VERSION=$(node -p "require('./package.json').version")
           echo "📦 Package version: ${PACKAGE_VERSION}"
-          
-          # 比较版本号（输入的版本必须 >= package.json 版本）
-          if ! sort -VC -t '.' -k1,1n -k2,2n -k3,3n <<< "${PACKAGE_VERSION}\n${VERSION_NUMBER}"; then
-            echo "❌ Error: Input version ${VERSION_NUMBER} is less than package version ${PACKAGE_VERSION}"
+
+          # 比较版本号（目标版本必须 >= package.json 版本）
+          HIGHER=$(printf '%s\n%s\n' "${VERSION}" "${PACKAGE_VERSION}" | sort -VC | tail -1)
+          if [ "${HIGHER}" != "${VERSION}" ]; then
+            echo "❌ Error: Target version ${VERSION} < package version ${PACKAGE_VERSION}"
             echo "should_build=false" >> $GITHUB_OUTPUT
-            echo "error_message=Version ${VERSION_NUMBER} must be >= ${PACKAGE_VERSION}" >> $GITHUB_OUTPUT
+            echo "error_message=Version ${VERSION} must be >= ${PACKAGE_VERSION}" >> $GITHUB_OUTPUT
             exit 1
           fi
-          
+
           echo "✅ Version validation passed"
-          echo "version=${VERSION_NUMBER}" >> $GITHUB_OUTPUT
-          
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
           # 如果是强制构建，直接返回 true
-          if [ "${{ inputs.force_build }}" == "true" ]; then
+          if [ "${{ inputs.force_build || 'false' }}" == "true" ]; then
             echo "⚠️ Force build enabled"
             echo "should_build=true" >> $GITHUB_OUTPUT
             exit 0
           fi
-          
+
           # 检查 Docker Hub 是否已存在该版本
-          echo "🔍 Checking if image exists for version ${VERSION_NUMBER}..."
-          
+          echo "🔍 Checking if image exists for version ${VERSION}..."
+
           # 设置镜像名称
           if [ -n "${{ secrets.DOCKER_USERNAME }}" ]; then
             IMAGE="${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}"
           else
             IMAGE="heard/${{ env.IMAGE_NAME }}"
           fi
-          
-          echo "Image name: ${IMAGE}:${VERSION_NUMBER}"
-          
+
+          echo "Image name: ${IMAGE}:${VERSION}"
+
           # 使用 Docker Hub API V2 检查镜像是否存在
-          RESPONSE=$(curl -s "https://hub.docker.com/v2/repositories/${IMAGE}/tags/${VERSION_NUMBER}")
-          
+          RESPONSE=$(curl -s "https://hub.docker.com/v2/repositories/${IMAGE}/tags/${VERSION}")
+
           if echo "${RESPONSE}" | grep -q '"id"'; then
-            echo "❌ Image ${IMAGE}:${VERSION_NUMBER} already exists"
+            echo "❌ Image ${IMAGE}:${VERSION} already exists"
             echo "should_build=false" >> $GITHUB_OUTPUT
             echo "error_message=Image already exists. Use force_build=true to override." >> $GITHUB_OUTPUT
           else
-            echo "✅ Image ${IMAGE}:${VERSION_NUMBER} does not exist, will build"
+            echo "✅ Image ${IMAGE}:${VERSION} does not exist, will build"
             echo "should_build=true" >> $GITHUB_OUTPUT
           fi
 
   version-error:
     name: Version Validation Error
-    needs: validate-version
-    if: needs.validate-version.outputs.should_build == 'false'
+    needs: extract-version
+    if: needs.extract-version.outputs.should_build == 'false'
     runs-on: ubuntu-latest
     steps:
       - name: Display error
         run: |
           echo "❌ Version Validation Failed"
           echo ""
-          echo "Error: ${{ needs.validate-version.outputs.error_message }}"
+          echo "Error: ${{ needs.extract-version.outputs.error_message }}"
           echo ""
           echo "Please check your version input and try again."
           exit 1
@@ -141,13 +150,13 @@ jobs:
   skip-build:
     name: Skip Build
     runs-on: ubuntu-latest
-    needs: validate-version
-    if: github.event_name == 'workflow_dispatch' && needs.validate-version.outputs.should_build == 'false'
+    needs: extract-version
+    if: github.event_name == 'workflow_dispatch' && needs.extract-version.outputs.should_build == 'false'
     
     steps:
       - name: Skip notification
         run: |
-          VERSION="${{ needs.validate-version.outputs.version }}"
+          VERSION="${{ needs.extract-version.outputs.version }}"
           echo "==================================="
           echo "Version ${VERSION} already exists"
           echo "Skipping build and push"
@@ -158,10 +167,10 @@ jobs:
   build:
     name: Build and Push
     runs-on: ubuntu-latest
-    needs: validate-version
+    needs: extract-version
     if: |
-      github.event_name != 'pull_request' && 
-      (github.event_name == 'workflow_dispatch' && needs.validate-version.outputs.should_build == 'true')
+      github.event_name != 'pull_request' &&
+      needs.extract-version.outputs.should_build == 'true'
     permissions:
       contents: read
       packages: write
@@ -194,7 +203,7 @@ jobs:
         with:
           images: ${{ secrets.DOCKER_USERNAME != '' && format('{0}/{1}', secrets.DOCKER_USERNAME, env.IMAGE_NAME) || format('heard/{0}', env.IMAGE_NAME) }}
           tags: |
-            type=semver,pattern=${{ needs.validate-version.outputs.version }}
+            type=semver,pattern=${{ needs.extract-version.outputs.version }}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
             type=raw,value=latest,enable={{is_default_branch}}
@@ -215,13 +224,13 @@ jobs:
           provenance: false
           build-args: |
             BUILDKIT_INLINE_CACHE=1  # 启用内联缓存
-            VERSION=${{ needs.validate-version.outputs.version }}
+            VERSION=${{ needs.extract-version.outputs.version }}
 
       - name: Run Trivy vulnerability scanner
         if: inputs.push_image == 'true'
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ secrets.DOCKER_USERNAME != '' && format('{0}/{1}', secrets.DOCKER_USERNAME, env.IMAGE_NAME) || format('heard/{0}', env.IMAGE_NAME) }}:${{ needs.validate-version.outputs.version }}
+          image-ref: ${{ secrets.DOCKER_USERNAME != '' && format('{0}/{1}', secrets.DOCKER_USERNAME, env.IMAGE_NAME) || format('heard/{0}', env.IMAGE_NAME) }}:${{ needs.extract-version.outputs.version }}
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'

@@ -175,11 +175,32 @@ server {
 ## 📁 项目结构 · Project Structure
 
 ```
-├── src/            # Vue 前端源码
-├── server/         # Rust 后端（静态文件由 server/dist/ 提供）
-├── docs/           # 文档
+├── frontend/            # Vue 3 前端（源码 + 构建配置）
+│   ├── index.html       # Vite 入口 HTML
+│   ├── vite.config.js   # Vite 构建配置
+│   ├── tailwind.config.js
+│   ├── postcss.config.js
+│   ├── eslint.config.js
+│   ├── .prettierrc
+│   ├── package.json     # 前端依赖（pnpm workspace 根在项目根）
+│   ├── components/      # 组件
+│   ├── composables/     # 组合式函数
+│   ├── stores/          # Pinia 状态管理
+│   └── utils/           # 工具函数
+├── server/              # Rust 后端 (Actix Web)
+│   ├── src/             # 后端源代码
+│   ├── Cargo.toml
+│   └── rustfmt.toml
+├── scripts/             # 构建和运维脚本
+├── docs/                # 文档和截图
+│   ├── screenshots/
+│   └── learnings/
+├── .github/workflows/   # CI/CD (ci, docker, release)
 ├── Dockerfile
 ├── docker-compose.yml
+├── .npmrc               # pnpm 配置
+├── package.json         # 项目脚本（dev/build/lint/format）
+├── pnpm-lock.yaml
 └── README.md
 ```
 

@@ -3,16 +3,17 @@ import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
 import { readFileSync } from 'fs'
 
-const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
+const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
 const buildId = new Date(Date.now() + 8 * 3600 * 1000).toISOString().replace(/[-:TZ.]/g, '').slice(0, 12)
 
 export default defineConfig({
+  root: 'frontend',
   plugins: [
     vue(),
   ],
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'src')
+      '@': resolve(__dirname, '.')
     }
   },
   server: {
@@ -26,7 +27,7 @@ export default defineConfig({
     }
   },
   build: {
-    outDir: 'dist',
+    outDir: '../dist',
     assetsDir: 'assets',
     chunkSizeWarningLimit: 1100,
     rollupOptions: {
