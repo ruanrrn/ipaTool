@@ -7,7 +7,7 @@ set -e
 
 # 获取脚本所在目录
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+cd "$SCRIPT_DIR/.."
 
 if [ -n "$1" ]; then
     # 使用命令行参数作为版本号
