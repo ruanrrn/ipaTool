@@ -106,18 +106,20 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue'
 import MobileBadge from './MobileBadge.vue'
 import SvgIcon from './SvgIcon.vue'
-import Appearance from './Appearance.vue'
-import AccountManager from './AccountManager.vue'
-import ChangePassword from './ChangePassword.vue'
 import { useAppStore } from '../stores/app'
 import DownloadManager from './DownloadManager.vue'
-import IpaManager from './IpaManager.vue'
-import ArchiveApp from './ArchiveApp.vue'
-import Settings from './Settings.vue'
 import homeIcon from '../assets/icons/home.svg?raw'
+
+const Appearance = defineAsyncComponent(() => import('./Appearance.vue'))
+const AccountManager = defineAsyncComponent(() => import('./AccountManager.vue'))
+import ChangePassword from './ChangePassword.vue'
+const IpaManager = defineAsyncComponent(() => import('./IpaManager.vue'))
+const ArchiveApp = defineAsyncComponent(() => import('./ArchiveApp.vue'))
+const Settings = defineAsyncComponent(() => import('./Settings.vue'))
+
 import clockIcon from '../assets/icons/clock.svg?raw'
 import bookmarkIcon from '../assets/icons/bookmark.svg?raw'
 import settingsIcon from '../assets/icons/settings.svg?raw'

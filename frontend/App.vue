@@ -34,7 +34,7 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, watch, ref } from 'vue'
+import { defineAsyncComponent, onMounted, onUnmounted, watch, ref } from 'vue'
 import { API_BASE } from './config.js'
 import { apiFetch } from './utils/api.js'
 
@@ -42,11 +42,10 @@ import { useDark } from './composables/useDark'
 import { useAppStore } from './stores/app'
 import { useNotifications } from './composables/useNotifications'
 import { STORAGE_KEYS } from './utils/storage.js'
-import TabLayout from './components/TabLayout.vue'
-import Login from './components/Login.vue'
-import { Confirm } from './components/MobileConfirm.vue'
-import { Toast } from './components/MobileToast.vue'
 import { applyAccentColor } from './utils/theme'
+
+const TabLayout = defineAsyncComponent(() => import('./components/TabLayout.vue'))
+const Login = defineAsyncComponent(() => import('./components/Login.vue'))
 
 const { isDark } = useDark()
 const appStore = useAppStore()
@@ -105,6 +104,7 @@ async function handleLogout(options = {}) {
  try {
    const shouldConfirm = options?.confirm !== false
    if (shouldConfirm) {
+     const { Confirm } = await import('./components/MobileConfirm.vue')
      const ok = await Confirm.show({
        title: '退出确认',
        message: '确定要退出登录吗？',
@@ -121,6 +121,7 @@ async function handleLogout(options = {}) {
 
    authState.value = 'unauthenticated'
    if (options?.toast !== false) {
+     const { Toast } = await import('./components/MobileToast.vue')
      Toast.success('已退出登录')
    }
  } catch {
