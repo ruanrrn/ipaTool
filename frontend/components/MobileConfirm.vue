@@ -64,7 +64,7 @@
 </template>
 
 <script>
-import { computed, createApp, h, nextTick } from 'vue'
+import { computed } from 'vue'
 
 const MobileConfirm = {
   name: 'MobileConfirm',
@@ -124,69 +124,57 @@ const MobileConfirm = {
 
 export default MobileConfirm
 
+const buildNativeConfirmMessage = (options = {}) => {
+  const parts = []
+  if (options.title) parts.push(String(options.title))
+  if (options.message) parts.push(String(options.message))
+  return parts.join('\n\n') || '确认执行此操作？'
+}
+
+const getOrCreateThemeColorMeta = () => {
+  let meta = document.querySelector('meta[name="theme-color"]')
+  if (!meta) {
+    meta = document.createElement('meta')
+    meta.setAttribute('name', 'theme-color')
+    document.head.appendChild(meta)
+  }
+  return meta
+}
+
+const applyNativeConfirmChromeTint = (color = '#8f8f99') => {
+  if (typeof document === 'undefined') return () => {}
+
+  const meta = getOrCreateThemeColorMeta()
+  const previousColor = meta.getAttribute('content') || ''
+  const previousScheme = document.documentElement.style.colorScheme
+
+  meta.setAttribute('content', color)
+  document.documentElement.style.colorScheme = 'light'
+
+  return () => {
+    if (previousColor) meta.setAttribute('content', previousColor)
+    else meta.removeAttribute('content')
+    document.documentElement.style.colorScheme = previousScheme
+  }
+}
+
 export const Confirm = {
   /**
-   * Confirm.show({ title, message, confirmText, cancelText, type, icon, iconColor }) -> Promise<boolean>
+   * Confirm.show({ title, message, chromeColor }) -> Promise<boolean>
+   * Uses the browser's native confirm dialog. On iOS Safari this is rendered
+   * by the system as the native iOS confirmation alert.
    */
   show(options = {}) {
-    return new Promise((resolve) => {
-      if (typeof document === 'undefined') {
-        resolve(false)
-        return
-      }
+    if (typeof window === 'undefined' || typeof window.confirm !== 'function') {
+      return Promise.resolve(false)
+    }
 
-      const container = document.createElement('div')
-      document.body.appendChild(container)
-
-      let settled = false
-
-      const app = createApp({
-        name: 'MobileConfirmHost',
-        data() {
-          return { visible: false }
-        },
-        mounted() {
-          // 让 Transition 有 enter
-          nextTick(() => {
-            this.visible = true
-          })
-        },
-        methods: {
-          settle(val) {
-            if (settled) return
-            settled = true
-            resolve(!!val)
-          },
-          handleConfirm() {
-            this.settle(true)
-            this.visible = false
-          },
-          handleCancel() {
-            this.settle(false)
-            this.visible = false
-          },
-          handleAfterLeave() {
-            app.unmount()
-            container.remove()
-          }
-        },
-        render() {
-          return h(MobileConfirm, {
-            ...options,
-            modelValue: this.visible,
-            'onUpdate:modelValue': (v) => {
-              this.visible = v
-              if (!v && !settled) this.settle(false)
-            },
-            onConfirm: this.handleConfirm,
-            onCancel: this.handleCancel,
-            onAfterLeave: this.handleAfterLeave
-          })
-        }
-      })
-
-      app.mount(container)
-    })
+    const restoreChromeTint = applyNativeConfirmChromeTint(options.chromeColor)
+    try {
+      return Promise.resolve(window.confirm(buildNativeConfirmMessage(options)))
+    } finally {
+      restoreChromeTint()
+    }
   }
 }
 </script>

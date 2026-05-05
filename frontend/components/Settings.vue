@@ -175,7 +175,7 @@
           </button>
           <button
             class="settings-row settings-row--interactive"
-            @click="showLogoutConfirm = true"
+            @click="confirmLogout"
           >
             <div class="sr-left">
               <div class="sr-icon sr-icon--danger">
@@ -224,32 +224,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Logout Confirm -->
-    <MobileConfirm
-      v-model="showLogoutConfirm"
-      icon="🚪"
-      icon-color="var(--color-danger-soft)"
-      title="确认退出登录？"
-      message="退出后需要重新输入用户名和密码登录。已下载的 IPA 文件不会删除。"
-      confirm-text="退出登录"
-      cancel-text="取消"
-      type="danger"
-      @confirm="handleLogout"
-    />
-
-    <!-- Delete Account Confirm -->
-    <MobileConfirm
-      v-model="showDeleteConfirm"
-      icon="🗑️"
-      icon-color="var(--color-danger-soft)"
-      title="确认删除账号？"
-      :message="`将删除账号 ${deleteTarget?.email || ''}，该账号正在进行的任务可能会受影响。`"
-      confirm-text="删除"
-      cancel-text="取消"
-      type="danger"
-      @confirm="confirmDeleteAccount"
-    />
   </div>
 </template>
 
@@ -261,7 +235,7 @@ import { useAccounts, accountIdentityKey } from '../composables/useAccounts'
 import { formatRegion } from '../utils/region.js'
 import { API_BASE } from '../config.js'
 import { apiFetch } from '../utils/api.js'
-import MobileConfirm from './MobileConfirm.vue'
+import { Confirm } from './MobileConfirm.vue'
 import { Toast } from './MobileToast.vue'
 
 const emit = defineEmits(['logout', 'navigate-to-appearance', 'navigate-to-account', 'navigate-to-changepassword'])
@@ -270,9 +244,6 @@ const { accounts, loadAccounts } = useAccounts()
 const appVersion = __APP_VERSION__
 const buildId = __APP_BUILD_ID__
 
-const showLogoutConfirm = ref(false)
-const showDeleteConfirm = ref(false)
-const deleteTarget = ref(null)
 const refreshingToken = ref(null)
 const githubTokenInput = ref('')
 const githubTokenSaving = ref(false)
@@ -329,6 +300,12 @@ async function handleSaveGithubToken() {
 }
 
 async function handleDeleteGithubToken() {
+  const confirmed = await Confirm.show({
+    title: '确认删除 GitHub PAT？',
+    message: `将删除当前用于社区归档贡献的 GitHub PAT${githubTokenMasked.value ? `（${githubTokenMasked.value}）` : ''}。删除后将无法发布贡献，直到重新配置。`
+  })
+  if (!confirmed) return
+
   githubTokenDeleting.value = true
   try {
     await appStore.deleteGithubToken()
@@ -352,9 +329,14 @@ onMounted(() => {
 })
 
 // ---- Logout ----
-async function handleLogout() {
+async function confirmLogout() {
+  const confirmed = await Confirm.show({
+    title: '确认退出登录？',
+    message: '退出后需要重新输入用户名和密码登录。已下载的 IPA 文件不会删除。'
+  })
+  if (!confirmed) return
+
   await appStore.logoutAdmin()
-  showLogoutConfirm.value = false
   Toast.success('已退出登录')
   emit('logout', {
     confirm: false,
@@ -387,14 +369,14 @@ async function handleRefreshAccount(account) {
 }
 
 // ---- Delete Account ----
-function handleDeleteAccount(account) {
-  deleteTarget.value = account
-  showDeleteConfirm.value = true
-}
-
-async function confirmDeleteAccount() {
-  const account = deleteTarget.value
+async function handleDeleteAccount(account) {
   if (!account?.token) return
+  const confirmed = await Confirm.show({
+    title: '确认删除账号？',
+    message: `将删除账号 ${account.email || ''}，该账号正在进行的任务可能会受影响。`
+  })
+  if (!confirmed) return
+
   try {
     const { response, data } = await apiFetch(`${API_BASE}/accounts/${account.token}`, {
       method: 'DELETE'
@@ -407,8 +389,6 @@ async function confirmDeleteAccount() {
     }
   } catch {
     Toast.error('删除请求失败')
-  } finally {
-    deleteTarget.value = null
   }
 }
 </script>

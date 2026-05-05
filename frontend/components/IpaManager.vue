@@ -214,20 +214,6 @@
           </div>
         </div>
 
-        <!-- Delete Confirm Dialog (MobileConfirm — Orbit v3) -->
-        <MobileConfirm
-          v-model="deleteDialogVisible"
-          icon="🗑️"
-          icon-color="#fef2f2"
-          title="删除 IPA 文件"
-          :message="pendingDeleteItem ? `确定删除「${pendingDeleteItem.appName}」${pendingDeleteItem.version ? 'v' + pendingDeleteItem.version : ''}吗？此操作不可恢复。` : '确定删除这个 IPA 文件吗？'"
-          confirm-text="删除"
-          cancel-text="取消"
-          type="danger"
-          :close-on-click-overlay="false"
-          @confirm="confirmDeleteArtifact"
-          @cancel="closeDeleteDialog"
-        />
       </div>
     </div>
   </div>
@@ -240,7 +226,6 @@ import { API_BASE } from '../config.js'
 import { Toast } from './MobileToast.vue'
 import { Confirm } from './MobileConfirm.vue'
 import SvgIcon from './SvgIcon.vue'
-import MobileConfirm from './MobileConfirm.vue'
 import AppArtwork from './AppArtwork.vue'
 import ProgressBar from './ProgressBar.vue'
 import EmptyState from './EmptyState.vue'
@@ -434,9 +419,7 @@ const removeTask = async (id) => {
 
 const artifacts = ref([])
 const ipaLoading = ref(false)
-const deleteDialogVisible = ref(false)
 const deletingArtifact = ref(false)
-const pendingDeleteItem = ref(null)
 
 const ipaStorageBytes = computed(() => artifacts.value.reduce((sum, item) => sum + Number(item.fileSize || 0), 0))
 
@@ -460,25 +443,19 @@ const deleteArtifactById = async (id) => {
   throw new Error(data.error || '删除失败')
 }
 
-const removeArtifact = (item) => {
-  pendingDeleteItem.value = item
-  deleteDialogVisible.value = true
-}
-
-const closeDeleteDialog = () => {
+const removeArtifact = async (item) => {
   if (deletingArtifact.value) return
-  deleteDialogVisible.value = false
-  pendingDeleteItem.value = null
-}
 
-const confirmDeleteArtifact = async () => {
-  if (!pendingDeleteItem.value) return
+  const versionLabel = item?.version ? `v${item.version}` : ''
+  const confirmed = await Confirm.show({
+    title: '删除 IPA 文件',
+    message: `确定删除「${item?.appName || '未知应用'}」${versionLabel}吗？此操作不可恢复。`
+  })
+  if (!confirmed) return
+
   deletingArtifact.value = true
-  const item = pendingDeleteItem.value
   try {
     const result = await deleteArtifactById(item.id)
-    deleteDialogVisible.value = false
-    pendingDeleteItem.value = null
     if (result.missing) {
       Toast.warning('文件已不存在，列表已刷新')
     } else {
