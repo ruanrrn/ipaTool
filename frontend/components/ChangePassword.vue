@@ -3,6 +3,7 @@
     <!-- Top Nav Bar -->
     <div class="cp-nav">
       <button
+        v-if="!forceChange"
         class="cp-nav__back"
         @click="emit('back')"
       >
@@ -26,7 +27,7 @@
           🔒
         </div>
         <div class="cp-hint__text">
-          修改登录账号和密码。修改后需要重新登录。
+          {{ forceChange ? '首次登录必须修改初始密码，完成后将直接进入系统。' : '修改登录账号和密码，完成后会保持当前登录态。' }}
         </div>
       </div>
 
@@ -117,6 +118,10 @@ const props = defineProps({
   currentPassword: {
     type: String,
     default: ''
+  },
+  forceChange: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -229,8 +234,7 @@ async function handleSubmit() {
       throw new Error(msg)
     }
 
-    Toast.success('账号密码修改成功，请重新登录')
-    emit('success')
+    emit('success', json?.data || null)
   } catch (e) {
     Toast.error(e?.message || '修改密码失败')
   } finally {

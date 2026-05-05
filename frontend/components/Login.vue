@@ -74,7 +74,8 @@
     <ChangePassword
       v-else-if="viewMode === 'changepassword'"
       :current-password="loginForm.password"
-      @back="viewMode = 'login'"
+      :force-change="forcePasswordChange"
+      @back="handleChangePasswordBack"
       @success="handleChangePasswordSuccess"
     />
   </div>
@@ -88,12 +89,19 @@ import MobileInput from './MobileInput.vue'
 import ChangePassword from './ChangePassword.vue'
 import { Toast } from './MobileToast.vue'
 
+const props = defineProps({
+  forcePasswordChange: {
+    type: Boolean,
+    default: false
+  }
+})
+
 const emit = defineEmits(['login-success'])
 const appStore = useAppStore()
 const appVersion = __APP_VERSION__
 
 // View mode: 'login' | 'changepassword'
-const viewMode = ref('login')
+const viewMode = ref(props.forcePasswordChange ? 'changepassword' : 'login')
 
 const loginLoading = ref(false)
 
@@ -144,12 +152,18 @@ const handleLogin = async () => {
   }
 }
 
-const handleChangePasswordSuccess = async () => {
-  await appStore.logoutAdmin()
-  viewMode.value = 'login'
-  loginForm.username = ''
-  loginForm.password = ''
-  window.location.reload()
+const handleChangePasswordBack = () => {
+  if (!props.forcePasswordChange) {
+    viewMode.value = 'login'
+  }
+}
+
+const handleChangePasswordSuccess = async (user) => {
+  if (user) {
+    appStore.setAuthUser(user)
+  }
+  Toast.success('账号密码修改成功')
+  emit('login-success')
 }
 </script>
 

@@ -667,13 +667,14 @@ impl Database {
 
     /// Atomic password change + optional rename in a single transaction.
     /// Returns the final username (new or unchanged).
-    /// When renaming, existing sessions are deleted (user will re-login anyway).
+    /// When renaming, the current session is moved to the new username so the user stays logged in.
     pub fn change_password_and_rename(
         &self,
         username: &str,
         new_password_hash: &str,
         is_default: bool,
         new_username: Option<&str>,
+        session_token: Option<&str>,
     ) -> Result<String> {
         let conn = self.connection.lock().unwrap();
         let tx = conn.unchecked_transaction()?;
@@ -686,15 +687,34 @@ impl Database {
 
         let final_username = match new_username {
             Some(new_name) => {
-                // Sessions FK references admin_users(username) — can't UPDATE to
-                // a value that doesn't exist yet. Since the user will be logged
-                // out after password change anyway, just drop their sessions.
+                let current_session_expires_at = match session_token {
+                    Some(token) => tx
+                        .query_row(
+                            "SELECT expires_at FROM sessions WHERE token = ? AND username = ?",
+                            params![token, username],
+                            |row| row.get::<_, String>(0),
+                        )
+                        .optional()?,
+                    None => None,
+                };
+
+                // sessions.username references admin_users(username) without ON UPDATE CASCADE.
+                // Delete old sessions before renaming, then recreate the current session under
+                // the new username so the password-change flow stays logged in.
                 tx.execute("DELETE FROM sessions WHERE username = ?", params![username])?;
-                // Now safe to rename admin_users
                 tx.execute(
                     "UPDATE admin_users SET username = ?, updated_at = CURRENT_TIMESTAMP WHERE username = ?",
                     params![new_name, username],
                 )?;
+
+                if let (Some(token), Some(expires_at)) = (session_token, current_session_expires_at)
+                {
+                    tx.execute(
+                        "INSERT INTO sessions (token, username, expires_at) VALUES (?, ?, ?)",
+                        params![token, new_name, expires_at],
+                    )?;
+                }
+
                 new_name.to_string()
             }
             None => username.to_string(),
@@ -1821,6 +1841,40 @@ mod tests {
         assert_ne!(before.password_hash, after.password_hash);
         assert!(bcrypt::verify("new-secure-password", &after.password_hash).unwrap());
         assert!(db.get_session("session-token").unwrap().is_none());
+
+        let _ = fs::remove_file(db_path);
+    }
+
+    #[test]
+    fn change_password_and_rename_preserves_current_session_and_updates_username() {
+        let db_path = temp_db_path("admin-change-password-rename-session");
+        let db = Database::new(db_path.to_str().unwrap()).unwrap();
+
+        db.create_session("current-session", "admin", "2999-01-01 00:00:00")
+            .unwrap();
+        db.create_session("old-session", "admin", "2999-01-01 00:00:00")
+            .unwrap();
+
+        let final_username = db
+            .change_password_and_rename(
+                "admin",
+                &Database::hash_password("new-secure-password"),
+                false,
+                Some("owner"),
+                Some("current-session"),
+            )
+            .unwrap();
+
+        assert_eq!(final_username, "owner");
+
+        let user = db.get_admin_user("owner").unwrap().unwrap();
+        assert!(!user.is_default);
+        assert!(bcrypt::verify("new-secure-password", &user.password_hash).unwrap());
+        assert!(db.get_admin_user("admin").unwrap().is_none());
+
+        let current_session = db.get_session("current-session").unwrap().unwrap();
+        assert_eq!(current_session.username, "owner");
+        assert!(db.get_session("old-session").unwrap().is_none());
 
         let _ = fs::remove_file(db_path);
     }

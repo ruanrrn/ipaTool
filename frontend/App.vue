@@ -18,6 +18,12 @@
       @login-success="onLoginSuccess"
     />
 
+    <Login
+      v-else-if="authState === 'force_password_change'"
+      force-password-change
+      @login-success="onLoginSuccess"
+    />
+
     <template v-else>
       <div class="mx-auto h-full max-w-[960px] overflow-hidden">
         <TabLayout
@@ -85,8 +91,8 @@ async function checkAuth() {
  try {
  const { data } = await apiFetch(`${API_BASE}/auth/me`, { credentials: 'same-origin' })
  if (data.ok && data.data) {
- authState.value = 'authenticated'
  appStore.setAuthUser(data.data)
+ authState.value = data.data.is_default ? 'force_password_change' : 'authenticated'
  } else {
  authState.value = 'unauthenticated'
  }
@@ -95,9 +101,11 @@ async function checkAuth() {
  }
 }
 
-function onLoginSuccess() {
- authState.value = 'authenticated'
- appStore.checkAuth()
+async function onLoginSuccess() {
+ const isAuthenticated = await appStore.checkAuth()
+ authState.value = isAuthenticated && appStore.authState.user?.is_default
+   ? 'force_password_change'
+   : 'authenticated'
 }
 
 async function handleLogout(options = {}) {

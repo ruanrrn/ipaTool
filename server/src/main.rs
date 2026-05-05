@@ -3891,6 +3891,7 @@ async fn change_password(
         &hash_password(&req.new_password),
         false,
         new_username,
+        Some(&admin.session_token),
     ) {
         Ok(name) => {
             log::info!(
