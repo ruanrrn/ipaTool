@@ -144,6 +144,9 @@ get_latest_cached() {
 do_install() {
     require_root || { press_enter; return; }
 
+    local was_installed=false
+    [ -f "${INSTALL_DIR}/server" ] && was_installed=true
+
     local version="${1:-$(get_latest_version)}"
     local arch pkg_name dl_url
     arch=$(detect_arch)
@@ -202,14 +205,21 @@ do_install() {
     # Save version
     echo "${version}" > "${INSTALL_DIR}/.version"
 
-    # Generate admin password
-    local admin_password
-    admin_password=$(tr -dc 'A-Za-z0-9!@#$%^&*' < /dev/urandom | head -c 16)
-    echo "${admin_password}" > "${INSTALL_DIR}/.initial_password"
-    chmod 600 "${INSTALL_DIR}/.initial_password"
+    # Generate admin password only on fresh install
+    local admin_password=""
+    if $was_installed; then
+        log_info "Upgrade detected — preserving existing data."
+    else
+        admin_password=$(tr -dc 'A-Za-z0-9!@#$%^&*' < /dev/urandom | head -c 16)
+        echo "${admin_password}" > "${INSTALL_DIR}/.initial_password"
+        chmod 600 "${INSTALL_DIR}/.initial_password"
+    fi
 
     # Setup systemd service
-    cat > "/etc/systemd/system/${SERVICE_NAME}.service" << SERVICEEOF
+    if $was_installed; then
+        systemctl daemon-reload
+    else
+        cat > "/etc/systemd/system/${SERVICE_NAME}.service" << SERVICEEOF
 [Unit]
 Description=ipaTool - IPA Download & Archive Manager
 After=network.target
@@ -225,9 +235,10 @@ Environment=IPA_ADMIN_INITIAL_PASSWORD=${admin_password}
 [Install]
 WantedBy=multi-user.target
 SERVICEEOF
+        systemctl daemon-reload
+        systemctl enable "${SERVICE_NAME}" 2>/dev/null || true
+    fi
 
-    systemctl daemon-reload
-    systemctl enable "${SERVICE_NAME}" 2>/dev/null || true
     systemctl start "${SERVICE_NAME}" 2>/dev/null || true
     sleep 2
 
@@ -258,12 +269,21 @@ SERVICEEOF
     echo -e "${BOLD}${GREEN}╔══════════════════════════════════════════════════════════╗${NC}"
     echo -e "${BOLD}${GREEN}║              Installation Complete!                     ║${NC}"
     echo -e "${BOLD}${GREEN}╠══════════════════════════════════════════════════════════╣${NC}"
-    printf "${BOLD}${GREEN}║${NC}  URL:      %-46s ${BOLD}${GREEN}║${NC}\n" "$(get_url)"
-    echo -e "${BOLD}${GREEN}║${NC}  Username: admin                                        ${BOLD}${GREEN}║${NC}"
-    printf "${BOLD}${GREEN}║${NC}  Password: %-46s ${BOLD}${GREEN}║${NC}\n" "${admin_password}"
+    if $was_installed; then
+        printf "${BOLD}${GREEN}║${NC}  URL:      %-46s ${BOLD}${GREEN}║${NC}\n" "$(get_url)"
+        printf "${BOLD}${GREEN}║${NC}  Version:  v%-43s ${BOLD}${GREEN}║${NC}\n" "${version}"
+    else
+        printf "${BOLD}${GREEN}║${NC}  URL:      %-46s ${BOLD}${GREEN}║${NC}\n" "$(get_url)"
+        echo -e "${BOLD}${GREEN}║${NC}  Username: admin                                        ${BOLD}${GREEN}║${NC}"
+        printf "${BOLD}${GREEN}║${NC}  Password: %-46s ${BOLD}${GREEN}║${NC}\n" "${admin_password}"
+    fi
     echo -e "${BOLD}${GREEN}╠══════════════════════════════════════════════════════════╣${NC}"
-    echo -e "${BOLD}${GREEN}║${NC}${YELLOW}  Save this password! It will not be shown again.${NC}       ${BOLD}${GREEN}║${NC}"
-    printf "${BOLD}${GREEN}║${NC}  Manage: sudo bash %-36s ${BOLD}${GREEN}║${NC}\n" "${INSTALL_DIR}/manager.sh"
+    if $was_installed; then
+        printf "${BOLD}${GREEN}║${NC}  Manage: sudo bash %-36s ${BOLD}${GREEN}║${NC}\n" "${INSTALL_DIR}/manager.sh"
+    else
+        echo -e "${BOLD}${GREEN}║${NC}${YELLOW}  Save this password! It will not be shown again.${NC}       ${BOLD}${GREEN}║${NC}"
+        printf "${BOLD}${GREEN}║${NC}  Manage: sudo bash %-36s ${BOLD}${GREEN}║${NC}\n" "${INSTALL_DIR}/manager.sh"
+    fi
     echo -e "${BOLD}${GREEN}╚══════════════════════════════════════════════════════════╝${NC}"
     echo ""
 
@@ -438,7 +458,12 @@ show_panel() {
         echo -e "${BOLD}${BLUE}╔══════════════════════════════════════════════════════════╗${NC}"
         echo -e "${BOLD}${BLUE}║${NC}              ${BOLD}ipaTool Management Panel${NC}                    ${BOLD}${BLUE}║${NC}"
         echo -e "${BOLD}${BLUE}╠══════════════════════════════════════════════════════════╣${NC}"
-        printf "${BOLD}${BLUE}║${NC}  ${BOLD}Version:${NC}   v%-42s ${BOLD}${BLUE}║${NC}\n" "${version}${update_hint}"
+        local version_display="v${version}"
+        if [ -n "$update_hint" ]; then
+            printf "${BOLD}${BLUE}║${NC}  ${BOLD}Version:${NC}   %-10s %b ${BOLD}${BLUE}║${NC}\n" "${version_display}" "${update_hint}"
+        else
+            printf "${BOLD}${BLUE}║${NC}  ${BOLD}Version:${NC}   %-44s ${BOLD}${BLUE}║${NC}\n" "${version_display}"
+        fi
         printf "${BOLD}${BLUE}║${NC}  ${BOLD}Status:${NC}    %b%-42s ${BOLD}${BLUE}║${NC}\n" "$status" "  ${pid}"
         printf "${BOLD}${BLUE}║${NC}  ${BOLD}Memory:${NC}    %-44s ${BOLD}${BLUE}║${NC}\n" "$mem"
         printf "${BOLD}${BLUE}║${NC}  ${BOLD}Uptime:${NC}    %-44s ${BOLD}${BLUE}║${NC}\n" "$uptime"
