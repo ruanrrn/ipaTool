@@ -35,10 +35,7 @@
       class="tab-content"
       :class="{ 'with-mobile-tabs': isMobile }"
     >
-      <Transition
-        name="page-fade"
-        mode="out-in"
-      >
+      <div class="subpage-host">
         <!-- Sub page: Appearance -->
         <Appearance
           v-if="subPage === 'appearance'"
@@ -68,29 +65,24 @@
           key="tabs"
           class="tab-host"
         >
-          <Transition
-            name="tab-fade"
-            mode="out-in"
-          >
-            <KeepAlive>
-              <component
-                :is="currentTabComponent"
-                :key="appStore.activeTab"
-                v-bind="currentTabProps"
-                @app-selected="handleAppSelected"
-                @download-started="handleDownloadStarted"
-                @accounts-updated="handleAccountsUpdated"
-                @remove-item="emit('remove-item', $event)"
-                @clear-all="emit('clear-queue')"
-                @logout="emit('logout')"
-                @navigate-to-appearance="subPage = 'appearance'"
-                @navigate-to-account="subPage = 'account'"
-                @navigate-to-changepassword="subPage = 'changepassword'"
-              />
-            </KeepAlive>
-          </Transition>
+          <KeepAlive>
+            <component
+              :is="currentTabComponent"
+              :key="appStore.activeTab"
+              v-bind="currentTabProps"
+              @app-selected="handleAppSelected"
+              @download-started="handleDownloadStarted"
+              @accounts-updated="handleAccountsUpdated"
+              @remove-item="emit('remove-item', $event)"
+              @clear-all="emit('clear-queue')"
+              @logout="emit('logout')"
+              @navigate-to-appearance="subPage = 'appearance'"
+              @navigate-to-account="subPage = 'account'"
+              @navigate-to-changepassword="subPage = 'changepassword'"
+            />
+          </KeepAlive>
         </div>
-      </Transition>
+      </div>
     </div>
 
     <!-- Orbit v3 Mobile Tab Bar -->
@@ -236,11 +228,7 @@ onMounted(() => {
   window.addEventListener('resize', checkMobile)
 
   if (typeof window !== 'undefined') {
-    if ('requestIdleCallback' in window) {
-      window.requestIdleCallback(prefetchAsyncChunks, { timeout: 2500 })
-    } else {
-      setTimeout(prefetchAsyncChunks, 1500)
-    }
+    setTimeout(prefetchAsyncChunks, 300)
   }
 })
 
@@ -456,32 +444,17 @@ watch(() => appStore.activeTab, () => {
   font-weight: 600;
 }
 
-/* ===== Transitions ===== */
-/* Tab swap: gentle fade between Home/Queue/Archive/Settings */
-.tab-fade-enter-active,
-.tab-fade-leave-active {
-  transition: opacity 0.18s ease;
-}
-.tab-fade-enter-from,
-.tab-fade-leave-to {
-  opacity: 0;
-}
-
-/* Sub-page swap: fade with small Y offset (settings <-> sub-page) */
-.page-fade-enter-active,
-.page-fade-leave-active {
-  transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.32, 0.72, 0, 1);
-}
-.page-fade-enter-from {
-  opacity: 0;
-  transform: translateY(8px);
-}
-.page-fade-leave-to {
-  opacity: 0;
-  transform: translateY(-4px);
+/* ===== Content hosts ===== */
+/* Tab and settings sub-pages switch instantly to avoid mobile horizontal jitter. */
+.subpage-host {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-/* tab-host: wrap so the inner KeepAlive+Transition layout is preserved */
+/* tab-host: wrap so the inner KeepAlive layout is preserved */
 .tab-host {
   flex: 1;
   min-height: 0;
@@ -489,17 +462,4 @@ watch(() => appStore.activeTab, () => {
   flex-direction: column;
 }
 
-/* Respect reduced-motion */
-@media (prefers-reduced-motion: reduce) {
-  .tab-fade-enter-active,
-  .tab-fade-leave-active,
-  .page-fade-enter-active,
-  .page-fade-leave-active {
-    transition: none;
-  }
-  .page-fade-enter-from,
-  .page-fade-leave-to {
-    transform: none;
-  }
-}
 </style>
