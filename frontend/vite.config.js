@@ -42,6 +42,15 @@ export default defineConfig({
           if (id.includes('node_modules/vue') || id.includes('node_modules/pinia') || id.includes('node_modules/@vueuse')) {
             return 'vue-vendor'
           }
+          // Settings sub-pages — always reached together; ship as one chunk
+          // so a single prefetch warms all of them.
+          if (
+            id.includes('/components/Appearance.vue') ||
+            id.includes('/components/AccountManager.vue') ||
+            id.includes('/components/ChangePassword.vue')
+          ) {
+            return 'settings-pages'
+          }
         },
       },
     }

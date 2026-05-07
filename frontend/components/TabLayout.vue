@@ -35,44 +35,62 @@
       class="tab-content"
       :class="{ 'with-mobile-tabs': isMobile }"
     >
-      <!-- Sub page: Appearance -->
-      <Appearance
-        v-if="subPage === 'appearance'"
-        @back="subPage = null"
-      />
+      <Transition
+        name="page-fade"
+        mode="out-in"
+      >
+        <!-- Sub page: Appearance -->
+        <Appearance
+          v-if="subPage === 'appearance'"
+          key="appearance"
+          @back="subPage = null"
+        />
 
-      <!-- Sub page: Account Manager -->
-      <AccountManager
-        v-else-if="subPage === 'account'"
-        @close="subPage = null"
-        @accounts-updated="(v) => emit('accounts-updated', v)"
-      />
+        <!-- Sub page: Account Manager -->
+        <AccountManager
+          v-else-if="subPage === 'account'"
+          key="account"
+          @close="subPage = null"
+          @accounts-updated="(v) => emit('accounts-updated', v)"
+        />
 
-      <!-- Sub page: Change Password -->
-      <ChangePassword
-        v-else-if="subPage === 'changepassword'"
-        @back="subPage = null"
-        @success="emit('logout')"
-      />
+        <!-- Sub page: Change Password -->
+        <ChangePassword
+          v-else-if="subPage === 'changepassword'"
+          key="changepassword"
+          @back="subPage = null"
+          @success="emit('logout')"
+        />
 
-      <!-- Normal tab content -->
-      <template v-else>
-        <KeepAlive>
-          <component
-            :is="currentTabComponent"
-            v-bind="currentTabProps"
-            @app-selected="handleAppSelected"
-            @download-started="handleDownloadStarted"
-            @accounts-updated="handleAccountsUpdated"
-            @remove-item="emit('remove-item', $event)"
-            @clear-all="emit('clear-queue')"
-            @logout="emit('logout')"
-            @navigate-to-appearance="subPage = 'appearance'"
-            @navigate-to-account="subPage = 'account'"
-            @navigate-to-changepassword="subPage = 'changepassword'"
-          />
-        </KeepAlive>
-      </template>
+        <!-- Normal tab content -->
+        <div
+          v-else
+          key="tabs"
+          class="tab-host"
+        >
+          <Transition
+            name="tab-fade"
+            mode="out-in"
+          >
+            <KeepAlive>
+              <component
+                :is="currentTabComponent"
+                :key="appStore.activeTab"
+                v-bind="currentTabProps"
+                @app-selected="handleAppSelected"
+                @download-started="handleDownloadStarted"
+                @accounts-updated="handleAccountsUpdated"
+                @remove-item="emit('remove-item', $event)"
+                @clear-all="emit('clear-queue')"
+                @logout="emit('logout')"
+                @navigate-to-appearance="subPage = 'appearance'"
+                @navigate-to-account="subPage = 'account'"
+                @navigate-to-changepassword="subPage = 'changepassword'"
+              />
+            </KeepAlive>
+          </Transition>
+        </div>
+      </Transition>
     </div>
 
     <!-- Orbit v3 Mobile Tab Bar -->
@@ -194,9 +212,36 @@ const currentTabProps = computed(() => {
   return {}
 })
 
+// Warm async chunks in the background so first-time tab/sub-page navigation
+// doesn't trigger a 1s white flash while the chunk is fetched.
+function prefetchAsyncChunks() {
+  const tasks = [
+    () => import('./IpaManager.vue'),
+    () => import('./ArchiveApp.vue'),
+    () => import('./Settings.vue'),
+    () => import('./Appearance.vue'),
+    () => import('./AccountManager.vue')
+  ]
+  for (const task of tasks) {
+    try {
+      task().catch(() => {})
+    } catch {
+      // ignore — prefetch is best-effort
+    }
+  }
+}
+
 onMounted(() => {
   checkMobile()
   window.addEventListener('resize', checkMobile)
+
+  if (typeof window !== 'undefined') {
+    if ('requestIdleCallback' in window) {
+      window.requestIdleCallback(prefetchAsyncChunks, { timeout: 2500 })
+    } else {
+      setTimeout(prefetchAsyncChunks, 1500)
+    }
+  }
 })
 
 onUnmounted(() => {
@@ -409,5 +454,52 @@ watch(() => appStore.activeTab, () => {
 .dark .mobile-tab.is-active .mobile-tab__label {
   color: var(--color-primary, #34d399);
   font-weight: 600;
+}
+
+/* ===== Transitions ===== */
+/* Tab swap: gentle fade between Home/Queue/Archive/Settings */
+.tab-fade-enter-active,
+.tab-fade-leave-active {
+  transition: opacity 0.18s ease;
+}
+.tab-fade-enter-from,
+.tab-fade-leave-to {
+  opacity: 0;
+}
+
+/* Sub-page swap: fade with small Y offset (settings <-> sub-page) */
+.page-fade-enter-active,
+.page-fade-leave-active {
+  transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.page-fade-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.page-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+/* tab-host: wrap so the inner KeepAlive+Transition layout is preserved */
+.tab-host {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Respect reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .tab-fade-enter-active,
+  .tab-fade-leave-active,
+  .page-fade-enter-active,
+  .page-fade-leave-active {
+    transition: none;
+  }
+  .page-fade-enter-from,
+  .page-fade-leave-to {
+    transform: none;
+  }
 }
 </style>
