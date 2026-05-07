@@ -262,9 +262,9 @@ async function handleSubmit() {
   display: flex;
   align-items: center;
   gap: 12px;
-  height: 56px;
+  min-height: calc(56px + env(safe-area-inset-top, 0px));
   margin: 0 calc(var(--space-5) * -1) 20px;
-  padding: 0 var(--space-5);
+  padding: env(safe-area-inset-top, 0px) var(--space-5) 0;
   background: var(--color-bg-white, #fff);
   border-bottom: 1px solid var(--color-border-light, #f0f0f0);
   flex-shrink: 0;
@@ -326,7 +326,7 @@ async function handleSubmit() {
   flex-shrink: 0;
 }
 .cp-hint__text {
-  font-size: 13px;
+  font-size: var(--font-size-label);
   line-height: 1.5;
   color: var(--color-text-tag);
 }
@@ -342,7 +342,7 @@ async function handleSubmit() {
 .cp-form {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-3);
 }
 
 .cp-field {
@@ -382,7 +382,7 @@ async function handleSubmit() {
   background: var(--color-primary);
 }
 .strength-text {
-  font-size: 12px;
+  font-size: var(--font-size-caption);
   font-weight: 500;
   white-space: nowrap;
 }
@@ -390,20 +390,22 @@ async function handleSubmit() {
 /* Submit button */
 .cp-submit {
   width: 100%;
+  min-height: var(--size-control-lg);
   padding: 14px;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   border: none;
   background: var(--color-primary);
   color: var(--color-text-inverse);
-  font-size: 15px;
+  font-size: var(--font-size-section);
   font-weight: 600;
   cursor: pointer;
   margin-top: 24px;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, transform 0.15s ease;
   -webkit-tap-highlight-color: transparent;
 }
-.cp-submit:active {
+.cp-submit:active:not(:disabled) {
   background: var(--color-primary-active, #0c7a5e);
+  transform: scale(0.98);
 }
 .cp-submit:disabled {
   background: var(--color-text-disabled, #d1d5db);

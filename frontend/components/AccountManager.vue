@@ -312,8 +312,8 @@ defineExpose({
 .appearance-page {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
   min-height: 100svh;
+  min-height: 100dvh;
   background: var(--color-bg-page, #f0f0f0);
 }
 
@@ -328,9 +328,9 @@ defineExpose({
   display: flex;
   align-items: center;
   gap: 12px;
-  height: 56px;
+  min-height: calc(56px + env(safe-area-inset-top, 0px));
   margin: 0 calc(var(--space-5) * -1) 20px;
-  padding: 0 var(--space-5);
+  padding: env(safe-area-inset-top, 0px) var(--space-5) 0;
   background: var(--color-bg-white, #fff);
   border-bottom: 1px solid var(--color-border-light, #f0f0f0);
   flex-shrink: 0;
@@ -379,11 +379,11 @@ defineExpose({
 }
 
 .ap-section {
-  padding: 20px 20px 0;
+  padding: var(--space-5) var(--space-5) 0;
 }
 
 .ap-section__title {
-  font-size: 12px;
+  font-size: var(--font-size-caption);
   font-weight: 500;
   color: var(--color-text-muted, #6e6e80);
   text-transform: uppercase;
@@ -398,7 +398,7 @@ defineExpose({
 .ap-card {
   background: var(--color-surface-muted, #f7f7f8);
   border: 1px solid var(--color-border, #ebebeb);
-  border-radius: 14px;
+  border-radius: var(--radius-xl);
   overflow: hidden;
 }
 
@@ -420,7 +420,7 @@ defineExpose({
 .ap-form__hint {
   padding-top: 8px;
   text-align: center;
-  font-size: 12px;
+  font-size: var(--font-size-caption);
   color: var(--color-text-tertiary, #c0c0c0);
 }
 
@@ -460,7 +460,7 @@ defineExpose({
  width: 22px;
  height: 22px;
  border: 2px solid var(--color-border-strong, #d1d5db);
- border-radius: 6px;
+ border-radius: var(--radius-base);
  background: var(--color-surface, #fff);
  transition: all 0.2s ease;
  flex-shrink: 0;

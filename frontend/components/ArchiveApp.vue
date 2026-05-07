@@ -975,7 +975,8 @@ onActivated(async () => {
 
 .archive-page__fixed {
   flex-shrink: 0;
-  padding-top: 20px;
+  padding-top: max(var(--space-5), env(safe-area-inset-top));
+  background: var(--color-bg);
 }
 
 .archive-page__scroll {
@@ -996,7 +997,7 @@ onActivated(async () => {
 
 /* Page title */
 .page-title {
-  font-size: 26px;
+  font-size: var(--font-size-title);
   font-weight: 700;
   line-height: 1.3;
   margin-bottom: 16px;
@@ -1033,10 +1034,10 @@ onActivated(async () => {
  display: flex;
  align-items: center;
  gap: 12px;
- padding: 14px;
+ padding: 12px;
  background: var(--color-surface, #fff);
  border: 1px solid var(--color-border, #ebebeb);
- border-radius: 14px;
+ border-radius: var(--radius-xl);
  margin-bottom: 8px;
  cursor: pointer;
  transition: opacity 0.2s ease;
@@ -1054,7 +1055,7 @@ onActivated(async () => {
  display: flex;
  gap: 0;
  background: var(--color-surface-muted, #f7f7f8);
- border-radius: 12px;
+ border-radius: var(--radius-xl);
  padding: 3px;
  margin-bottom: 0;
 }
@@ -1066,9 +1067,9 @@ onActivated(async () => {
  flex: 1;
  padding: 9px;
  text-align: center;
- font-size: 13px;
+ font-size: var(--font-size-label);
  font-weight: 500;
- border-radius: 10px;
+ border-radius: var(--radius-lg);
  color: var(--color-text-muted, #6e6e80);
  border: none;
  background: transparent;
@@ -1099,6 +1100,8 @@ onActivated(async () => {
 /* Favorite list container — gap handled by fav-item margin-bottom */
 .fav-list {
   padding-top: 8px;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 88px;
 }
 
 .archive-section {
@@ -1129,7 +1132,7 @@ onActivated(async () => {
 }
 
 .archive-section__title {
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 700;
   color: var(--color-text, #0d0d0d);
 }
@@ -1137,7 +1140,7 @@ onActivated(async () => {
 .archive-section__desc,
 .archive-section__meta,
 .fav-item__meta {
-  font-size: 12px;
+  font-size: var(--font-size-caption);
   color: var(--color-text-muted, #6e6e80);
 }
 
@@ -1159,7 +1162,7 @@ onActivated(async () => {
 .fav-item__icon {
   width: 44px !important;
   height: 44px !important;
-  border-radius: 11px !important;
+  border-radius: var(--radius-lg) !important;
   flex-shrink: 0;
 }
 
@@ -1179,7 +1182,7 @@ onActivated(async () => {
 }
 
 .fav-item__name {
- font-size: 14px;
+ font-size: var(--font-size-body);
  font-weight: 600;
  color: var(--color-text, #0d0d0d);
  white-space: nowrap;
@@ -1193,12 +1196,12 @@ onActivated(async () => {
 }
 
 .fav-item__ver {
-  font-size: 11px;
+  font-size: var(--font-size-micro);
   font-weight: 500;
   color: var(--color-primary);
   background: var(--color-primary-soft);
   border: 1px solid var(--color-primary-border);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   padding: 2px 7px;
   line-height: 1.2;
   flex-shrink: 0;
@@ -1210,7 +1213,7 @@ onActivated(async () => {
 }
 
 .fav-item__dev-row {
- font-size: 11px;
+ font-size: var(--font-size-micro);
  color: var(--color-text-muted, #6e6e80);
  margin-top: 2px;
  white-space: nowrap;
@@ -1223,7 +1226,7 @@ onActivated(async () => {
 
 /* Note */
 .fav-item__note {
-  font-size: 11px;
+  font-size: var(--font-size-micro);
   color: var(--color-text-muted, #6e6e80);
   margin-top: 4px;
   white-space: nowrap;
@@ -1235,7 +1238,7 @@ onActivated(async () => {
 }
 
 .fav-item__tag {
-  font-size: 11px;
+  font-size: var(--font-size-micro);
   font-weight: 600;
   color: var(--color-primary);
   background: var(--color-primary-soft);
@@ -1271,7 +1274,7 @@ onActivated(async () => {
 .fav-btn {
   width: 32px;
   height: 32px;
-  border-radius: 8px;
+  border-radius: var(--radius-base);
   border: 1px solid var(--color-border, #ebebeb);
   background: var(--color-surface, #fff);
   color: var(--color-text-muted, #6e6e80);
@@ -1324,7 +1327,7 @@ onActivated(async () => {
 .fav-btn--publish {
   color: var(--color-primary);
   border-color: var(--color-primary-border);
-  font-size: 16px;
+  font-size: var(--font-size-heading);
   font-weight: 700;
 }
 .dark .fav-btn--publish {
@@ -1337,7 +1340,7 @@ onActivated(async () => {
 .q-btn {
  width: 32px;
  height: 32px;
- border-radius: 8px;
+ border-radius: var(--radius-base);
  border: 1px solid var(--color-border, #ebebeb);
  background: var(--color-surface, #fff);
  color: var(--color-text-muted, #6e6e80);

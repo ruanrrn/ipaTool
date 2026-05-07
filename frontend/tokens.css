@@ -139,6 +139,7 @@
   --size-icon-md: 22px;
   --size-icon-lg: 24px;
   --size-icon-xl: 28px;
+  --size-tab-icon: 22px;
 
   /* Touch targets */
   --size-touch-mobile: 48px;
@@ -266,6 +267,9 @@
   --color-overlay-dialog: var(--overlay-dialog);
   --color-surface-soft: var(--color-warning-bg);
   --color-primary-rgb: 16, 163, 127;
+
+  /* ===== Runtime: keyboard / safe area (visualViewport-driven) ===== */
+  --kb-inset-bottom: 0px;
 }
 
 

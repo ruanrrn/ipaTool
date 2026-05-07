@@ -207,8 +207,8 @@ function setAccentColor(color) {
 .appearance-page {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
   min-height: 100svh;
+  min-height: 100dvh;
   background: var(--color-bg-page);
 }
 .dark .appearance-page {
@@ -223,9 +223,9 @@ function setAccentColor(color) {
   display: flex;
   align-items: center;
   gap: 12px;
-  height: 56px;
+  min-height: calc(56px + env(safe-area-inset-top, 0px));
   margin: 0 calc(var(--space-5) * -1) 20px;
-  padding: 0 var(--space-5);
+  padding: env(safe-area-inset-top, 0px) var(--space-5) 0;
   background: var(--color-bg-white);
   border-bottom: 1px solid var(--color-border-light);
   flex-shrink: 0;
@@ -274,10 +274,10 @@ function setAccentColor(color) {
 
 /* Section */
 .ap-section {
-  padding: 20px 20px 0;
+  padding: var(--space-5) var(--space-5) 0;
 }
 .ap-section__title {
-  font-size: 12px;
+  font-size: var(--font-size-caption);
   font-weight: 500;
   color: var(--color-text-muted);
   text-transform: uppercase;
@@ -292,7 +292,7 @@ function setAccentColor(color) {
 .ap-card {
   background: var(--color-surface-muted);
   border: 1px solid var(--color-border);
-  border-radius: 14px;
+  border-radius: var(--radius-xl);
   overflow: hidden;
 }
 .dark .ap-card {
@@ -305,10 +305,11 @@ function setAccentColor(color) {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px 16px;
+  padding: 12px 16px;
+  min-height: var(--size-control-lg);
   cursor: pointer;
   transition: background 0.15s ease;
-  border-bottom: 0.5px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
   -webkit-tap-highlight-color: transparent;
 }
 .ap-option:last-child {
@@ -326,9 +327,9 @@ function setAccentColor(color) {
 
 /* Radio */
 .ap-radio {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
   border: 2px solid var(--color-border-divider);
   flex-shrink: 0;
   transition: border-color 0.2s ease;
@@ -341,9 +342,9 @@ function setAccentColor(color) {
 }
 .ap-radio--selected::after {
   content: '';
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
   background: var(--color-primary);
 }
 
@@ -354,7 +355,7 @@ function setAccentColor(color) {
   gap: 2px;
 }
 .ap-option__label {
-  font-size: 15px;
+  font-size: var(--font-size-section);
   font-weight: 500;
   color: var(--color-text);
 }
@@ -362,7 +363,7 @@ function setAccentColor(color) {
   color: var(--color-text);
 }
 .ap-option__desc {
-  font-size: 12px;
+  font-size: var(--font-size-caption);
   color: var(--color-text-muted);
 }
 .dark .ap-option__desc {
@@ -376,15 +377,15 @@ function setAccentColor(color) {
   flex-wrap: wrap;
 }
 .color-swatch {
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-lg);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 18px;
-  color: #fff;
+  color: var(--color-text-inverse);
   transition: transform 0.15s ease, box-shadow 0.2s ease;
   -webkit-tap-highlight-color: transparent;
 }
@@ -399,10 +400,10 @@ function setAccentColor(color) {
 .ap-preview-card {
   background: var(--color-surface-muted);
   border: 1px solid var(--color-border);
-  border-radius: 14px;
-  padding: 16px;
-  margin-top: 8px;
-  margin-bottom: 8px;
+  border-radius: var(--radius-xl);
+  padding: var(--space-4);
+  margin-top: var(--space-2);
+  margin-bottom: var(--space-2);
 }
 .dark .ap-preview-card {
   background: var(--color-surface);
@@ -416,13 +417,13 @@ function setAccentColor(color) {
 .ap-preview-icon {
   width: 40px;
   height: 40px;
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 18px;
   flex-shrink: 0;
-  color: #fff;
+  color: var(--color-text-inverse);
 }
 .ap-preview-icon--muted {
   background: var(--color-surface-muted);
@@ -440,7 +441,7 @@ function setAccentColor(color) {
   flex: 1;
 }
 .ap-preview-name {
-  font-size: 15px;
+  font-size: var(--font-size-section);
   font-weight: 500;
   color: var(--color-text);
 }
@@ -448,7 +449,7 @@ function setAccentColor(color) {
   color: var(--color-text);
 }
 .ap-preview-detail {
-  font-size: 12px;
+  font-size: var(--font-size-caption);
   color: var(--color-text-muted);
 }
 .dark .ap-preview-detail {
@@ -459,7 +460,7 @@ function setAccentColor(color) {
 .ap-toggle {
   width: 44px;
   height: 26px;
-  border-radius: 13px;
+  border-radius: 999px;
   background: var(--color-border-divider);
   position: relative;
   cursor: pointer;
@@ -472,8 +473,8 @@ function setAccentColor(color) {
 .ap-toggle__thumb {
   width: 22px;
   height: 22px;
-  border-radius: 50%;
-  background: #fff;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
   position: absolute;
   top: 2px;
   left: 2px;

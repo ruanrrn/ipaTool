@@ -47,6 +47,7 @@ import { apiFetch } from './utils/api.js'
 import { useDark } from './composables/useDark'
 import { useAppStore } from './stores/app'
 import { useNotifications } from './composables/useNotifications'
+import { useKeyboardAware } from './composables/useKeyboardAware'
 import { STORAGE_KEYS } from './utils/storage.js'
 import { applyAccentColor } from './utils/theme'
 
@@ -59,21 +60,7 @@ const notifications = useNotifications()
 
 const authState = ref('loading')
 
-const preventGestureZoom = (event) => {
- event.preventDefault()
-}
-
-const preventMultiTouchZoom = (event) => {
- if (event.touches && event.touches.length > 1) {
-  event.preventDefault()
- }
-}
-
-const preventCtrlWheelZoom = (event) => {
- if (event.ctrlKey) {
-  event.preventDefault()
- }
-}
+useKeyboardAware()
 
 const lockRootViewport = () => {
  document.documentElement.style.overflow = 'hidden'
@@ -167,10 +154,6 @@ onMounted(() => {
    applyAccentColor(savedAccentColor)
  }
  lockRootViewport()
- document.addEventListener('gesturestart', preventGestureZoom, { passive: false })
- document.addEventListener('gesturechange', preventGestureZoom, { passive: false })
- document.addEventListener('touchmove', preventMultiTouchZoom, { passive: false })
- window.addEventListener('wheel', preventCtrlWheelZoom, { passive: false })
  // If savedAppearance === 'light', useDark already loaded isDark=false, no action needed
  checkAuth()
  notifications.init()
@@ -178,10 +161,6 @@ onMounted(() => {
 
 onUnmounted(() => {
  unlockRootViewport()
- document.removeEventListener('gesturestart', preventGestureZoom)
- document.removeEventListener('gesturechange', preventGestureZoom)
- document.removeEventListener('touchmove', preventMultiTouchZoom)
- window.removeEventListener('wheel', preventCtrlWheelZoom)
  notifications.stopVersionPolling()
 })
 

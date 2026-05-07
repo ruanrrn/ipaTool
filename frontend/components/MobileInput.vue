@@ -199,6 +199,16 @@ const handleInput = (e) => {
 const handleFocus = (e) => {
   isFocused.value = true
   emit('focus', e)
+  // Defer until iOS Safari has resized the visual viewport for the keyboard
+  if (typeof window !== 'undefined' && 'visualViewport' in window) {
+    setTimeout(() => {
+      try {
+        e.target?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      } catch {
+        // ignore
+      }
+    }, 320)
+  }
 }
 
 const handleBlur = (e) => {
@@ -316,7 +326,8 @@ defineExpose({
   border: none;
   outline: none;
   font-family: var(--font-body);
-  font-size: 15px;
+  /* 16px to prevent iOS Safari focus auto-zoom */
+  font-size: 16px;
   color: var(--color-text-primary, #0d0d0d);
   line-height: 1.5;
   width: 100%;

@@ -1,12 +1,12 @@
 <template>
-  <div class="flex min-h-[100svh] items-center justify-center bg-surface-page dark:bg-surface-dark-page px-5 py-10">
+  <div class="login-shell flex items-center justify-center bg-surface-page dark:bg-surface-dark-page px-5 py-10">
     <div
       v-if="viewMode === 'login'"
       class="w-full max-w-[420px]"
     >
       <!-- Brand Area -->
       <div class="mb-8 flex flex-col items-center text-center">
-        <div class="mb-3 flex h-16 w-16 items-center justify-center rounded-[16px] bg-brand text-white text-[28px] font-bold">
+        <div class="brand-icon">
           i
         </div>
         <h1 class="mb-1 text-[20px] font-bold text-txt dark:text-txt-dark">
@@ -168,23 +168,47 @@ const handleChangePasswordSuccess = async (user) => {
 </script>
 
 <style scoped>
-/* Login button (matching design mockup) */
+.login-shell {
+  min-height: 100svh;
+  min-height: 100dvh;
+  /* Avoid soft-keyboard overlap on iOS Safari (set by useKeyboardAware) */
+  padding-bottom: max(40px, var(--kb-inset-bottom, 0px));
+}
+
+/* Brand icon — match home card-icon radius */
+.brand-icon {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-xl);
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: var(--space-3);
+}
+
+/* Login button (matches MobileButton primary) */
 .login-btn {
   width: 100%;
+  min-height: var(--size-control-lg);
   padding: 14px;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   border: none;
   background: var(--color-primary);
   color: var(--color-text-inverse);
-  font-size: 15px;
+  font-size: var(--font-size-section);
   font-weight: 600;
   cursor: pointer;
   margin-top: 8px;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, transform 0.15s ease;
   -webkit-tap-highlight-color: transparent;
 }
-.login-btn:active {
+.login-btn:active:not(:disabled) {
   background: var(--color-primary-hover, #0e8c6b);
+  transform: scale(0.98);
 }
 .login-btn:disabled {
   background: var(--color-text-disabled, #d1d5db);

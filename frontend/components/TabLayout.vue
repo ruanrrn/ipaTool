@@ -232,10 +232,10 @@ watch(() => appStore.activeTab, () => {
   height: 44px;
   padding: 0 var(--space-3);
   border: 0;
-  border-radius: 12px 12px 0 0;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   background: transparent;
   color: var(--color-text-muted, #6e6e80);
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 500;
   cursor: pointer;
   transition: color 0.2s ease, background 0.2s ease;
@@ -317,13 +317,13 @@ watch(() => appStore.activeTab, () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: var(--size-tab-icon);
+  height: var(--size-tab-icon);
 }
 
 .mobile-tab .tab-layout__icon {
-  width: 24px;
-  height: 24px;
+  width: var(--size-tab-icon);
+  height: var(--size-tab-icon);
   color: var(--color-text-muted, #6e6e80);
   transition: color 0.2s ease;
 }
@@ -333,7 +333,7 @@ watch(() => appStore.activeTab, () => {
 }
 
 .mobile-tab__label {
-  font-size: 11px;
+  font-size: var(--font-size-micro);
   font-weight: 500;
   color: var(--color-text-muted, #6e6e80);
   line-height: 1.3;
@@ -354,7 +354,7 @@ watch(() => appStore.activeTab, () => {
   border-radius: 9999px;
   background: var(--color-danger);
   color: var(--color-text-inverse);
-  font-size: 10px;
+  font-size: var(--font-size-nano);
   font-weight: 600;
   display: flex;
   align-items: center;

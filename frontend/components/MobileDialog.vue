@@ -238,7 +238,7 @@ onBeforeUnmount(() => {
 }
 
 .mobile-dialog__panel--bottom .mobile-dialog__body {
-  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  padding-bottom: calc(24px + max(env(safe-area-inset-bottom), var(--kb-inset-bottom, 0px)));
 }
 
 .mobile-dialog__footer {
