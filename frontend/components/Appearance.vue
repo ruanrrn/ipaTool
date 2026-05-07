@@ -114,7 +114,7 @@
 <script setup>
 import SvgIcon from './SvgIcon.vue'
 import arrowLeftIcon from '../assets/icons/arrow-left.svg?raw'
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useDark } from '../composables/useDark'
 import { applyAccentColor } from '../utils/theme'
 import { STORAGE_KEYS } from '../utils/storage.js'
@@ -122,12 +122,8 @@ import { Toast } from './MobileToast.vue'
 
 const emit = defineEmits(['back'])
 
-const { setDark } = useDark()
-let systemThemeQuery = null
-let removeSystemThemeListener = null
-
 // Dark mode: 'system' | 'light' | 'dark'
-const darkMode = ref('system')
+const { darkMode, setDarkMode: applyDarkModePreference } = useDark()
 
 const darkModes = [
   { value: 'system', label: '跟随系统', desc: '自动切换浅色 / 深色' },
@@ -154,61 +150,15 @@ const accentColors = [
 
 // Load saved preferences
 onMounted(() => {
-  const savedDarkMode = localStorage.getItem(STORAGE_KEYS.DARK_MODE)
-  if (savedDarkMode && ['system', 'light', 'dark'].includes(savedDarkMode)) {
-    darkMode.value = savedDarkMode
-  }
-
   const savedAccent = localStorage.getItem(STORAGE_KEYS.ACCENT_COLOR)
   if (savedAccent) {
     accentColor.value = savedAccent
     applyAccentColor(savedAccent)
   }
-
-  // Apply initial dark mode setting
-  applyDarkModeSetting()
-})
-
-onUnmounted(() => {
-  clearSystemThemeListener()
 })
 
 function setDarkMode(mode) {
-  darkMode.value = mode
-  localStorage.setItem(STORAGE_KEYS.DARK_MODE, mode)
-  applyDarkModeSetting()
-}
-
-function clearSystemThemeListener() {
-  if (!systemThemeQuery || !removeSystemThemeListener) return
-  removeSystemThemeListener()
-  removeSystemThemeListener = null
-}
-
-function applyDarkModeSetting() {
-  clearSystemThemeListener()
-
-  if (darkMode.value === 'dark') {
-    setDark(true)
-    return
-  }
-
-  if (darkMode.value === 'light') {
-    setDark(false)
-    return
-  }
-
-  systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)')
-  setDark(systemThemeQuery.matches)
-
-  const handleSystemThemeChange = (event) => {
-    if (darkMode.value === 'system') setDark(event.matches)
-  }
-
-  systemThemeQuery.addEventListener('change', handleSystemThemeChange)
-  removeSystemThemeListener = () => {
-    systemThemeQuery.removeEventListener('change', handleSystemThemeChange)
-  }
+  applyDarkModePreference(mode)
 }
 
 function setAccentColor(color) {
