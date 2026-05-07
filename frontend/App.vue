@@ -40,7 +40,7 @@
 </template>
 
 <script setup>
-import { defineAsyncComponent, onMounted, onUnmounted, watch, ref } from 'vue'
+import { defineAsyncComponent, onMounted, onUnmounted, ref } from 'vue'
 import { API_BASE } from './config.js'
 import { apiFetch } from './utils/api.js'
 
@@ -145,22 +145,7 @@ const handleRemoveItem = (index) => appStore.removeFromQueue(index)
 const handleClearQueue = () => appStore.clearQueue()
 const handleAccountsUpdated = () => appStore.triggerAccountsUpdate()
 
-const updateDarkClass = () => {
- const method = isDark.value ? 'add' : 'remove'
- document.documentElement.classList[method]('dark')
- document.body.classList[method]('dark')
-}
-
 onMounted(() => {
- // Only apply system preference if user hasn't explicitly chosen a mode
- const savedAppearance = localStorage.getItem(STORAGE_KEYS.DARK_MODE)
- if (!savedAppearance || savedAppearance === 'system') {
-   isDark.value = window.matchMedia('(prefers-color-scheme: dark)').matches
-   updateDarkClass()
- } else if (savedAppearance === 'dark') {
-   isDark.value = true
-   updateDarkClass()
- }
  // Apply saved accent color
  const savedAccentColor = localStorage.getItem(STORAGE_KEYS.ACCENT_COLOR)
  if (savedAccentColor) {
@@ -185,7 +170,6 @@ onUnmounted(() => {
  notifications.stopVersionPolling()
 })
 
-watch(isDark, updateDarkClass)
 </script>
 
 <style scoped>

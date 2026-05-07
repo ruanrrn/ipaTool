@@ -1,7 +1,6 @@
 <template>
   <div class="settings-page">
     <div class="settings-page__fixed px-5">
-      <!-- Page Title -->
       <h1 class="page-title text-txt dark:text-txt-dark">
         设置
       </h1>
@@ -9,219 +8,40 @@
 
     <div class="settings-page__scroll">
       <div class="settings-page__scroll-inner px-5">
-        <!-- Section 1: Apple ID 账号 -->
-        <p class="section-label text-txt-secondary dark:text-txt-dark-secondary">
-          Apple ID 账号
-        </p>
-        <div class="settings-card">
-          <!-- Account rows -->
-          <div
-            v-for="(account, index) in accounts"
-            :key="getAccountKey(account, index)"
-            class="settings-row settings-row--account"
-          >
-            <div class="sr-left">
-              <div class="sr-icon sr-icon--apple">
-                🍎
-              </div>
-              <div class="sr-label">
-                {{ account.email }}
-                <span
-                  v-if="account.lastRefreshedAt != null"
-                  class="sr-freshness"
-                  :class="getFreshnessClass(account.lastRefreshedAt)"
-                >
-                  {{ getFreshnessLabel(account.lastRefreshedAt) }}
-                </span>
-              </div>
-            </div>
-            <div class="sr-right">
-              <span>{{ getRegionLabel(account.region || 'US') }}</span>
-              <button
-                class="sr-btn sr-btn--refresh"
-                :disabled="refreshingToken === account.token"
-                @click.stop="handleRefreshAccount(account)"
-              >
-                <span v-if="refreshingToken === account.token" class="sr-btn__spinner" />
-                <span v-else>↻</span>
-              </button>
-              <button
-                class="sr-btn sr-btn--delete"
-                @click.stop="handleDeleteAccount(account)"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
+        <SettingsAppleAccountsSection
+          :accounts="accounts"
+          :get-account-key="getAccountKey"
+          :get-freshness-class="getFreshnessClass"
+          :get-freshness-label="getFreshnessLabel"
+          :get-region-label="getRegionLabel"
+          :refreshing-token="refreshingToken"
+          @delete-account="handleDeleteAccount"
+          @navigate-to-account="emit('navigate-to-account')"
+          @refresh-account="handleRefreshAccount"
+        />
 
-          <!-- Add Account row -->
-          <button
-            class="settings-row settings-row--interactive"
-            @click="emit('navigate-to-account')"
-          >
-            <div class="sr-left">
-              <div class="sr-icon sr-icon--add">
-                +
-              </div>
-              <div class="sr-label sr-label--brand">
-                添加账号
-              </div>
-            </div>
-            <div class="sr-right">
-              <span class="sr-arrow">›</span>
-            </div>
-          </button>
-        </div>
+        <SettingsGithubTokenSection
+          v-model="githubTokenInput"
+          :configured="githubTokenConfigured"
+          :deleting="githubTokenDeleting"
+          :masked-token="githubTokenMasked"
+          :saving="githubTokenSaving"
+          :updated-at="githubTokenUpdatedAt"
+          @delete="handleDeleteGithubToken"
+          @save="handleSaveGithubToken"
+        />
 
-        <!-- Section 2: GitHub PAT -->
-        <p class="section-label text-txt-secondary dark:text-txt-dark-secondary">
-          GitHub 贡献
-        </p>
-        <div class="settings-card settings-card--github">
-          <div class="settings-row settings-row--stacked">
-            <div class="github-token__header">
-              <div class="sr-left">
-                <div class="sr-icon sr-icon--github">GH</div>
-                <div class="sr-label">GitHub PAT</div>
-              </div>
-              <span
-                class="github-token__status"
-                :class="githubTokenConfigured ? 'github-token__status--ok' : 'github-token__status--empty'"
-              >
-                {{ githubTokenConfigured ? '已配置' : '未配置' }}
-              </span>
-            </div>
-            <div class="github-token__desc">
-              用于把本地下架候选提交到官方 ipa-archive 仓库。PAT 只保存在后端，前端不回显明文。
-            </div>
-            <div
-              v-if="githubTokenConfigured"
-              class="github-token__meta"
-            >
-              <span v-if="githubTokenMasked">{{ githubTokenMasked }}</span>
-              <span v-if="githubTokenUpdatedAt">更新于 {{ githubTokenUpdatedAt }}</span>
-            </div>
-            <input
-              v-model="githubTokenInput"
-              class="github-token__input"
-              type="password"
-              autocomplete="off"
-              spellcheck="false"
-              placeholder="粘贴 GitHub fine-grained PAT"
-            >
-            <div class="github-token__actions">
-              <button
-                class="github-token__btn github-token__btn--primary"
-                :disabled="githubTokenSaving || !githubTokenInput.trim()"
-                @click="handleSaveGithubToken"
-              >
-                {{ githubTokenSaving ? '保存中…' : '保存 PAT' }}
-              </button>
-              <button
-                v-if="githubTokenConfigured"
-                class="github-token__btn github-token__btn--danger"
-                :disabled="githubTokenDeleting"
-                @click="handleDeleteGithubToken"
-              >
-                {{ githubTokenDeleting ? '删除中…' : '删除' }}
-              </button>
-            </div>
-          </div>
-        </div>
+        <SettingsAppearanceSection @navigate-to-appearance="emit('navigate-to-appearance')" />
 
-        <!-- Section 3: 外观 -->
-        <p class="section-label text-txt-secondary dark:text-txt-dark-secondary">
-          外观
-        </p>
-        <div class="settings-card">
-          <button
-            class="settings-row settings-row--interactive"
-            @click="emit('navigate-to-appearance')"
-          >
-            <div class="sr-left">
-              <div class="sr-icon sr-icon--appearance">
-                🌙
-              </div>
-              <div class="sr-label">
-                外观配置
-              </div>
-            </div>
-            <div class="sr-right">
-              <span>跟随系统</span><span class="sr-arrow">›</span>
-            </div>
-          </button>
-        </div>
+        <SettingsSecuritySection
+          @logout="confirmLogout"
+          @navigate-to-changepassword="emit('navigate-to-changepassword')"
+        />
 
-        <!-- Section 4: 安全 -->
-        <p class="section-label text-txt-secondary dark:text-txt-dark-secondary">
-          安全
-        </p>
-        <div class="settings-card">
-          <button
-            class="settings-row settings-row--interactive"
-            @click="emit('navigate-to-changepassword')"
-          >
-            <div class="sr-left">
-              <div class="sr-icon sr-icon--danger">
-                🔑
-              </div>
-              <div class="sr-label sr-label--danger">
-                修改账号密码
-              </div>
-            </div>
-            <div class="sr-right">
-              <span class="sr-arrow">›</span>
-            </div>
-          </button>
-          <button
-            class="settings-row settings-row--interactive"
-            @click="confirmLogout"
-          >
-            <div class="sr-left">
-              <div class="sr-icon sr-icon--danger">
-                🚪
-              </div>
-              <div class="sr-label sr-label--danger">
-                退出登录
-              </div>
-            </div>
-            <div class="sr-right">
-              <span class="sr-arrow">›</span>
-            </div>
-          </button>
-        </div>
-
-        <!-- Section 5: 关于 (bottom-pinned, margin-top 24px) -->
-        <p class="section-label section-label--about text-txt-secondary dark:text-txt-dark-secondary">
-          关于
-        </p>
-        <div class="settings-card settings-card--about">
-          <div class="settings-row">
-            <div class="sr-left">
-              <div class="sr-icon sr-icon--neutral">
-                ℹ️
-              </div>
-              <div class="sr-label">
-                版本号
-              </div>
-            </div>
-            <div class="sr-right">
-              <span>v{{ appVersion }} · {{ buildId }}</span>
-            </div>
-          </div>
-          <a
-            href="https://github.com/ruanrrn/ipaTool"
-            target="_blank"
-            rel="noopener"
-            class="settings-row settings-row--interactive"
-          >
-            <div class="sr-left">
-              <div class="sr-icon sr-icon--neutral">🔗</div>
-              <div class="sr-label">GitHub</div>
-            </div>
-            <div class="sr-right"><span class="sr-arrow">↗</span></div>
-          </a>
-        </div>
+        <SettingsAboutSection
+          :app-version="appVersion"
+          :build-id="buildId"
+        />
       </div>
     </div>
   </div>
@@ -237,6 +57,11 @@ import { API_BASE } from '../config.js'
 import { apiFetch } from '../utils/api.js'
 import { Confirm } from './MobileConfirm.vue'
 import { Toast } from './MobileToast.vue'
+import SettingsAboutSection from './SettingsAboutSection.vue'
+import SettingsAppleAccountsSection from './SettingsAppleAccountsSection.vue'
+import SettingsAppearanceSection from './SettingsAppearanceSection.vue'
+import SettingsGithubTokenSection from './SettingsGithubTokenSection.vue'
+import SettingsSecuritySection from './SettingsSecuritySection.vue'
 
 const emit = defineEmits(['logout', 'navigate-to-appearance', 'navigate-to-account', 'navigate-to-changepassword'])
 const appStore = useAppStore()
@@ -263,9 +88,6 @@ const getAccountKey = (account, fallbackIndex = '') => accountIdentityKey(accoun
 
 const getRegionLabel = (region) => formatRegion(region)
 
-// ---- Account Freshness ----
-// 后端返回 lastRefreshedAt = 距上次认证的秒数
-// 后端 ACCOUNT_REFRESH_AFTER_SECS = 1800 (30 min)
 const FRESHNESS_THRESHOLD = 1800
 
 function getFreshnessLabel(lastRefreshedAt) {
@@ -278,12 +100,11 @@ function getFreshnessLabel(lastRefreshedAt) {
 
 function getFreshnessClass(lastRefreshedAt) {
   const secs = lastRefreshedAt || 0
-  if (secs < FRESHNESS_THRESHOLD * 0.7) return 'sr-freshness--fresh'   // <21 min
-  if (secs < FRESHNESS_THRESHOLD) return 'sr-freshness--warning'       // <30 min
-  return 'sr-freshness--stale'                                         // >=30 min
+  if (secs < FRESHNESS_THRESHOLD * 0.7) return 'sr-freshness--fresh'
+  if (secs < FRESHNESS_THRESHOLD) return 'sr-freshness--warning'
+  return 'sr-freshness--stale'
 }
 
-// ---- GitHub PAT ----
 async function handleSaveGithubToken() {
   const token = githubTokenInput.value.trim()
   if (!token) return
@@ -328,7 +149,6 @@ onMounted(() => {
   })
 })
 
-// ---- Logout ----
 async function confirmLogout() {
   const confirmed = await Confirm.show({
     title: '确认退出登录？',
@@ -345,7 +165,6 @@ async function confirmLogout() {
   })
 }
 
-// ---- Refresh Account ----
 async function handleRefreshAccount(account) {
   if (!account.token) return
   refreshingToken.value = account.token
@@ -368,7 +187,6 @@ async function handleRefreshAccount(account) {
   }
 }
 
-// ---- Delete Account ----
 async function handleDeleteAccount(account) {
   if (!account?.token) return
   const confirmed = await Confirm.show({
@@ -393,7 +211,7 @@ async function handleDeleteAccount(account) {
 }
 </script>
 
-<style scoped>
+<style>
 /* Page title */
 .page-title {
   font-size: 26px;

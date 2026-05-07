@@ -16,7 +16,16 @@
     >
       <div class="version-picker__section-header">
         <span class="version-picker__section-title">选择版本</span>
-        <span class="version-picker__section-count">共 {{ versions.length }} 个</span>
+        <div class="version-picker__section-actions">
+          <button
+            type="button"
+            class="version-picker__manual-btn"
+            @click="emit('manual-version-request')"
+          >
+            手动输入版本 ID
+          </button>
+          <span class="version-picker__section-count">共 {{ versions.length }} 个</span>
+        </div>
       </div>
       <div class="version-picker__version-list">
         <div
@@ -54,7 +63,9 @@
       v-else-if="versionsFetched"
       class="version-picker__section version-picker__empty-section"
     >
-      <p class="version-picker__empty-title">未查询到可用版本</p>
+      <p class="version-picker__empty-title">
+        未查询到可用版本
+      </p>
       <p
         v-if="appid"
         class="version-picker__appid-hint"
@@ -76,6 +87,8 @@
 </template>
 
 <script setup>
+import { getVersionId, normalizeVersionSize } from '../utils/version.js'
+
 const props = defineProps({
   versions: {
     type: Array,
@@ -103,10 +116,10 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['version-selected'])
+const emit = defineEmits(['version-selected', 'manual-version-request'])
 
 const selectVersionRadio = (ver) => {
-  const verId = String(ver.external_identifier ?? ver.version_id ?? ver.id ?? '')
+  const verId = getVersionId(ver)
   emit('version-selected', verId, ver)
 }
 
@@ -114,22 +127,6 @@ const getVersionSizeLabel = (version) => {
   const versionSize = normalizeVersionSize(version)
   if (versionSize > 0) return props.formatFileSize(versionSize)
   return '大小未知'
-}
-
-const normalizeVersionSize = (version) => {
-  const rawSize = version?.size
-    ?? version?.fileSizeBytes
-    ?? version?.size_bytes
-    ?? version?.bundleSizeBytes
-    ?? version?.downloadSize
-    ?? version?.download_size
-    ?? version?.file_size
-    ?? version?.appSize
-    ?? version?.app_size
-    ?? 0
-
-  const parsedSize = Number(rawSize)
-  return Number.isFinite(parsedSize) && parsedSize > 0 ? parsedSize : 0
 }
 </script>
 
@@ -197,6 +194,23 @@ const normalizeVersionSize = (version) => {
   font-size: var(--font-size-body);
   font-weight: 600;
   color: var(--color-txt);
+}
+
+.version-picker__section-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.version-picker__manual-btn {
+  border: none;
+  background: transparent;
+  color: var(--color-primary);
+  font-size: var(--font-size-caption);
+  font-weight: 600;
+  padding: 0;
+  cursor: pointer;
 }
 
 .version-picker__section-count {

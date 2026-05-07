@@ -40,180 +40,22 @@
     <div class="queue-page__scroll">
       <div class="queue-page__scroll-inner px-5">
         <!-- Active Tab -->
-        <div
+        <IpaActiveTasksSection
           v-show="activeTab === 'active'"
-          class="queue-panel"
-        >
-          <!-- Active tasks -->
-          <div
-            v-if="activeTasks.length === 0"
-            class="queue-empty"
-          >
-            <EmptyState
-              type="empty"
-              text="队列为空"
-            />
-          </div>
-          <div
-            v-else
-            class="queue-list"
-          >
-            <div
-              v-for="task in activeTasks"
-              :key="task.id"
-              class="queue-item"
-            >
-              <!-- Icon -->
-              <AppArtwork
-                :src="task.artworkUrl"
-                :alt="task.appName"
-                :label="task.appName"
-                class="queue-item__icon"
-              />
-              <!-- Info -->
-              <div class="queue-item__info">
-                <div class="queue-item__name">
-                  {{ task.appName }}
-                </div>
-                <div class="queue-item__meta">
-                  <span>版本 {{ task.version || '未知' }}</span>
-                  <span>{{ task.accountEmail || task.account?.email || '未知账号' }}</span>
-                </div>
-                <!-- Progress -->
-                <div
-                  v-if="task.status !== 'failed' && task.progress !== undefined"
-                  class="queue-item__progress"
-                >
-                  <ProgressBar
-                    :percent="task.progress"
-                    :color="task.stage === 'signing' ? 'var(--color-warning, #f59e0b)' : 'var(--color-primary, #10a37f)'"
-                    size="default"
-                  />
-                  <div class="queue-item__progress-info">
-                    <span>{{ localizeProgressStage(task.stage || '下载中') }} {{ task.progress }}%</span>
-                    <span v-if="task.fileSize">{{ formatFileSize(task.fileSize) }}</span>
-                  </div>
-                </div>
-                <!-- Error -->
-                <div
-                  v-if="task.error"
-                  class="queue-item__error"
-                >
-                  {{ task.error }}
-                </div>
-              </div>
-              <!-- Actions -->
-              <div class="queue-item__actions">
-                <button
-                  class="q-btn q-btn--pause"
-                  :title="pausedTasks.has(task.id) ? '继续任务' : '暂停任务'"
-                  @click="togglePause(task.id)"
-                >
-                  <SvgIcon
-                    v-if="!pausedTasks.has(task.id)"
-                    class="h-[14px] w-[14px]"
-                    :icon="pauseIcon"
-                  />
-                  <SvgIcon
-                    v-else
-                    class="h-[14px] w-[14px]"
-                    :icon="playIcon"
-                  />
-                </button>
-                <button
-                  class="q-btn"
-                  title="取消任务"
-                  @click="removeTask(task.id)"
-                >
-                  <SvgIcon
-                    class="h-[14px] w-[14px]"
-                    :icon="closeIcon"
-                  />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+          :tasks="activeTasks"
+          :paused-task-ids="pausedTaskIds"
+          @toggle-pause="togglePause"
+          @remove-task="removeTask"
+        />
 
         <!-- Completed Tab -->
-        <div
+        <IpaArtifactsSection
           v-show="activeTab === 'completed'"
-          class="queue-panel"
-        >
-          <!-- Completed Items -->
-          <div
-            v-if="artifacts.length === 0"
-            class="queue-empty"
-          >
-            <EmptyState
-              type="empty"
-              text="暂无已完成文件"
-            />
-          </div>
-          <div
-            v-else
-            class="queue-list queue-list--completed"
-          >
-            <div
-              v-for="item in artifacts"
-              :key="item.id"
-              class="queue-item queue-item--done"
-            >
-              <!-- Icon -->
-              <AppArtwork
-                :src="item.artworkUrl"
-                :alt="item.appName"
-                :label="item.appName"
-                class="queue-item__icon"
-              />
-              <!-- Info -->
-              <div class="queue-item__info">
-                <div class="queue-item__name">
-                  {{ item.appName }}
-                </div>
-                <div class="queue-item__meta">
-                  <span>v{{ item.version || '未知' }}</span>
-                  <span>{{ formatFileSize(item.fileSize) }}</span>
-                </div>
-              </div>
-              <!-- Actions -->
-              <div class="queue-item__actions">
-                <button
-                  class="q-btn q-btn--download"
-                  title="下载"
-                  @click="download(item.downloadUrl)"
-                >
-                  <SvgIcon
-                    class="h-[14px] w-[14px]"
-                    :icon="downloadIcon"
-                  />
-                </button>
-                <button
-                  v-if="item.otaInstallable && item.installUrl"
-                  class="q-btn q-btn--install"
-                  title="安装"
-                  @click="install(item.installUrl)"
-                >
-                  <SvgIcon
-                    class="h-[14px] w-[14px]"
-                    :icon="layersIcon"
-                  />
-                </button>
-                <button
-                  class="q-btn q-btn--danger"
-                  title="删除"
-                  @click="removeArtifact(item)"
-                >
-                  <SvgIcon
-                    class="h-[14px] w-[14px]"
-                    :icon="trashIcon"
-                  />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
+          :artifacts="artifacts"
+          @download="download"
+          @install="install"
+          @remove-artifact="removeArtifact"
+        />
       </div>
     </div>
   </div>
@@ -225,20 +67,11 @@ import { API_BASE } from '../config.js'
 
 import { Toast } from './MobileToast.vue'
 import { Confirm } from './MobileConfirm.vue'
-import SvgIcon from './SvgIcon.vue'
-import AppArtwork from './AppArtwork.vue'
-import ProgressBar from './ProgressBar.vue'
-import EmptyState from './EmptyState.vue'
+import IpaActiveTasksSection from './IpaActiveTasksSection.vue'
+import IpaArtifactsSection from './IpaArtifactsSection.vue'
 import { useAppStore } from '../stores/app'
 import { apiFetch } from '../utils/api.js'
 import { useJobPolling } from '../composables/useJobPolling.js'
-import { localizeProgressStage } from '../composables/useDownload.js'
-import pauseIcon from '../assets/icons/pause-fill.svg?raw'
-import playIcon from '../assets/icons/play-fill.svg?raw'
-import closeIcon from '../assets/icons/close.svg?raw'
-import downloadIcon from '../assets/icons/download.svg?raw'
-import layersIcon from '../assets/icons/layers.svg?raw'
-import trashIcon from '../assets/icons/trash.svg?raw'
 
 
 const props = defineProps({
@@ -257,6 +90,7 @@ const activeTab = computed({
 
 // ── Pause state ──
 const pausedTasks = reactive(new Set())
+const pausedTaskIds = computed(() => Array.from(pausedTasks))
 
 const togglePause = (taskId) => {
   if (pausedTasks.has(taskId)) {
@@ -536,22 +370,6 @@ onActivated(() => {
   padding-bottom: 24px;
 }
 
-.queue-panel {
-  display: flex;
-  flex-direction: column;
-}
-
-.queue-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding-top: 8px;
-}
-
-.queue-list--completed {
-  padding-top: 8px;
-}
-
 /* Page title + header row */
 .queue-header {
   display: flex;
@@ -634,110 +452,6 @@ onActivated(() => {
   color: var(--color-text-muted, #a1a1aa);
 }
 
-.dark .queue-item--done {
- background: var(--color-surface, #18181b);
- border-color: var(--color-surface-muted, #27272a);
-}
-
-/* Queue Item */
-.queue-item {
- display: flex;
- align-items: center;
- gap: 12px;
- padding: 14px;
- background: var(--color-surface, #fff);
- border: 1px solid var(--color-border, #ebebeb);
- border-radius: 14px;
- transition: opacity 0.2s ease;
-}
-.queue-item:active {
- opacity: 0.8;
-}
-.dark .queue-item {
- background: var(--color-surface, #18181b);
- border-color: var(--color-surface-muted, #27272a);
-}
-
-/* Queue empty state */
-.queue-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  flex: 1;
-  min-height: 220px;
-  padding: 8px 0 16px;
-}
-
-/* Dark mode for empty state background (inherits from page, no extra needed) */
-
-/* Icon container — override AppArtwork sizing */
-.queue-item__icon {
-  width: 44px !important;
-  height: 44px !important;
-  border-radius: 11px !important;
-  flex-shrink: 0;
-}
-
-/* Info area */
-.queue-item__info {
-  flex: 1;
-  min-width: 0;
-}
-
-.queue-item__name {
- font-size: 14px;
- font-weight: 600;
- color: var(--color-text, #0d0d0d);
- white-space: nowrap;
- overflow: hidden;
- text-overflow: ellipsis;
-}
-.dark .queue-item__name {
- color: var(--color-text, #f5f5f5);
-}
-
-.queue-item__meta {
- display: flex;
- gap: 10px;
- font-size: 11px;
- color: var(--color-text-muted, #6e6e80);
- margin-top: 2px;
-}
-.dark .queue-item__meta {
- color: var(--color-text-muted, #a1a1aa);
-}
-
-/* Progress area */
-.queue-item__progress {
- margin-top: 6px;
-}
-
-.queue-item__progress-info {
- display: flex;
- justify-content: space-between;
- font-size: 10px;
- color: var(--color-text-muted, #6e6e80);
- margin-top: 3px;
-}
-.dark .queue-item__progress-info {
- color: var(--color-text-muted, #a1a1aa);
-}
-
-/* Error text */
-.queue-item__error {
- font-size: 11px;
- color: var(--color-danger, #ef4444);
- margin-top: 4px;
-}
-
-/* Actions */
-.queue-item__actions {
-  display: flex;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
 /* Action button base */
 .q-btn {
  width: 32px;
@@ -762,56 +476,6 @@ onActivated(() => {
 }
 .q-btn:active {
   opacity: 0.7;
-}
-
-.q-btn--download {
-  color: var(--color-primary);
-  border-color: var(--color-primary-border);
-}
-.dark .q-btn--download {
-  color: var(--color-primary);
-  border-color: rgba(16, 163, 127, 0.3);
-  background: rgba(16, 163, 127, 0.15);
-}
-
-.q-btn--install {
-  color: var(--color-primary);
-  border-color: var(--color-primary-border);
-}
-.dark .q-btn--install {
-  color: var(--color-primary);
-  border-color: rgba(16, 163, 127, 0.3);
-  background: rgba(16, 163, 127, 0.15);
-}
-
-.q-btn--danger {
-  color: var(--color-danger);
-  border-color: var(--color-danger-border);
-}
-.dark .q-btn--danger {
-  color: var(--color-danger);
-  border-color: rgba(239, 68, 68, 0.3);
-  background: rgba(239, 68, 68, 0.15);
-}
-
-.q-btn--pause {
-  color: var(--color-warning);
-  border-color: var(--color-warning-border);
-  background: var(--color-warning-bg);
-}
-.dark .q-btn--pause {
-  color: var(--color-warning);
-  border-color: rgba(245, 158, 11, 0.5);
-  background: rgba(245, 158, 11, 0.1);
-}
-
-.q-btn--more {
-  color: var(--color-text-muted);
-  border-color: var(--color-border);
-}
-.dark .q-btn--more {
-  color: var(--color-text-muted);
-  border-color: var(--color-surface-muted);
 }
 
 /* Text-style danger button for header actions */
@@ -839,35 +503,5 @@ onActivated(() => {
 }
 .q-btn--danger-text:active {
  opacity: 0.7;
-}
-
-/* Upload bar */
-.upload-bar-wrap {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.upload-bar-text {
-  font-size: 11px;
-  color: var(--color-text-muted);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-.dark .upload-bar-text {
-  color: var(--color-text-muted);
-}
-
-/* Inline upload label */
-.inline-upload {
-  display: inline-flex;
-}
-
-/* Animation for refresh button */
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-.animate-spin {
-  animation: spin 1s linear infinite;
 }
 </style>

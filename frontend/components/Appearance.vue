@@ -114,7 +114,7 @@
 <script setup>
 import SvgIcon from './SvgIcon.vue'
 import arrowLeftIcon from '../assets/icons/arrow-left.svg?raw'
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useDark } from '../composables/useDark'
 import { applyAccentColor } from '../utils/theme'
 import { STORAGE_KEYS } from '../utils/storage.js'
@@ -122,7 +122,9 @@ import { Toast } from './MobileToast.vue'
 
 const emit = defineEmits(['back'])
 
-const { isDark, toggleDark } = useDark()
+const { setDark } = useDark()
+let systemThemeQuery = null
+let removeSystemThemeListener = null
 
 // Dark mode: 'system' | 'light' | 'dark'
 const darkMode = ref('system')
@@ -167,30 +169,45 @@ onMounted(() => {
   applyDarkModeSetting()
 })
 
+onUnmounted(() => {
+  clearSystemThemeListener()
+})
+
 function setDarkMode(mode) {
   darkMode.value = mode
   localStorage.setItem(STORAGE_KEYS.DARK_MODE, mode)
   applyDarkModeSetting()
 }
 
+function clearSystemThemeListener() {
+  if (!systemThemeQuery || !removeSystemThemeListener) return
+  removeSystemThemeListener()
+  removeSystemThemeListener = null
+}
+
 function applyDarkModeSetting() {
-  const mq = window.matchMedia('(prefers-color-scheme: dark)')
+  clearSystemThemeListener()
 
   if (darkMode.value === 'dark') {
-    if (!isDark.value) toggleDark()
-  } else if (darkMode.value === 'light') {
-    if (isDark.value) toggleDark()
-  } else {
-    // System: follow media query
-    const shouldBeDark = mq.matches
-    if (shouldBeDark !== isDark.value) toggleDark()
+    setDark(true)
+    return
+  }
 
-    // Listen for system changes
-    mq.onchange = (e) => {
-      if (darkMode.value === 'system') {
-        if (e.matches !== isDark.value) toggleDark()
-      }
-    }
+  if (darkMode.value === 'light') {
+    setDark(false)
+    return
+  }
+
+  systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)')
+  setDark(systemThemeQuery.matches)
+
+  const handleSystemThemeChange = (event) => {
+    if (darkMode.value === 'system') setDark(event.matches)
+  }
+
+  systemThemeQuery.addEventListener('change', handleSystemThemeChange)
+  removeSystemThemeListener = () => {
+    systemThemeQuery.removeEventListener('change', handleSystemThemeChange)
   }
 }
 
