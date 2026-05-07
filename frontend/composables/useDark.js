@@ -1,31 +1,53 @@
 import { ref, watch } from 'vue'
 import { STORAGE_KEYS } from '../utils/storage.js'
 
-export function useDark() {
-  const isDark = ref(false)
+const isDark = ref(false)
+let initialized = false
 
-  // Load from localStorage
-  const stored = localStorage.getItem(STORAGE_KEYS.DARK_MODE_LEGACY)
-  if (stored !== null) {
-    isDark.value = stored === 'true'
+function setDarkClass(value) {
+  document.documentElement.classList.toggle('dark', value)
+  document.body?.classList.toggle('dark', value)
+}
+
+function initDarkState() {
+  if (initialized) return
+  initialized = true
+
+  const savedAppearance = localStorage.getItem(STORAGE_KEYS.DARK_MODE)
+  const legacyStored = localStorage.getItem(STORAGE_KEYS.DARK_MODE_LEGACY)
+
+  if (savedAppearance === 'dark') {
+    isDark.value = true
+  } else if (savedAppearance === 'light') {
+    isDark.value = false
+  } else if (legacyStored !== null) {
+    isDark.value = legacyStored === 'true'
+  } else {
+    isDark.value = window.matchMedia('(prefers-color-scheme: dark)').matches
   }
 
-  // Watch for changes and save to localStorage
+  setDarkClass(isDark.value)
+
   watch(isDark, (value) => {
-    localStorage.setItem(STORAGE_KEYS.DARK_MODE_LEGACY, value)
-    if (value) {
-      document.documentElement.classList.add('dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-    }
+    localStorage.setItem(STORAGE_KEYS.DARK_MODE_LEGACY, String(value))
+    setDarkClass(value)
   }, { immediate: true })
+}
+
+export function useDark() {
+  initDarkState()
+
+  const setDark = (value) => {
+    isDark.value = Boolean(value)
+  }
 
   const toggleDark = () => {
-    isDark.value = !isDark.value
+    setDark(!isDark.value)
   }
 
   return {
     isDark,
+    setDark,
     toggleDark
   }
 }

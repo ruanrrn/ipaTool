@@ -76,8 +76,22 @@ static PENDING_MFA: std::sync::LazyLock<RwLock<HashMap<String, PendingMfaSession
 static PURCHASE_CACHE: std::sync::LazyLock<
     RwLock<std::collections::HashMap<(String, String), PurchaseCacheEntry>>,
 > = std::sync::LazyLock::new(|| RwLock::new(std::collections::HashMap::new()));
+static COMMUNITY_DELISTED_INDEX_CACHE: std::sync::LazyLock<
+    RwLock<Option<(Instant, CommunityDelistedLiteIndex)>>,
+> = std::sync::LazyLock::new(|| RwLock::new(None));
+static COMMUNITY_DELISTED_APP_CACHE: std::sync::LazyLock<
+    RwLock<HashMap<String, (Instant, CommunityDelistedAppDetail)>>,
+> = std::sync::LazyLock::new(|| RwLock::new(HashMap::new()));
+static STORE_STATUS_CACHE: std::sync::LazyLock<RwLock<HashMap<String, (Instant, bool)>>> =
+    std::sync::LazyLock::new(|| RwLock::new(HashMap::new()));
+type LocalDelistedCandidatesCache = RwLock<Option<(Instant, Vec<LocalDelistedCandidate>)>>;
+static LOCAL_DELISTED_CANDIDATES_CACHE: std::sync::LazyLock<LocalDelistedCandidatesCache> =
+    std::sync::LazyLock::new(|| RwLock::new(None));
 
 const PURCHASE_CACHE_TTL_SECS: u64 = 300; // 5 minutes
+const COMMUNITY_ARCHIVE_CACHE_TTL_SECS: u64 = 300; // 5 minutes
+const STORE_STATUS_CACHE_TTL_SECS: u64 = 3600; // 1 hour
+const LOCAL_DELISTED_CANDIDATES_CACHE_TTL_SECS: u64 = 60; // 1 minute
 
 fn evict_expired_purchase_cache_locked(
     cache: &mut std::collections::HashMap<(String, String), PurchaseCacheEntry>,
@@ -548,18 +562,37 @@ fn extract_version_size(item: &Value) -> i64 {
 
 fn extract_version_created_at(item: &Value) -> String {
     item.get("created_at")
+        .or(item.get("released_at"))
         .or(item.get("date"))
         .and_then(|v| v.as_str())
         .unwrap_or("")
         .to_string()
 }
 
+fn extract_version_source(item: &Value) -> String {
+    item.get("source")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string()
+}
+
 fn format_version_item(item: &Value) -> Value {
+    let label = extract_version_label(item);
+    let external_identifier = extract_version_external_identifier(item);
+    let size = extract_version_size(item);
+    let created_at = extract_version_created_at(item);
+    let source = extract_version_source(item);
     serde_json::json!({
-        "bundle_version": extract_version_label(item),
-        "external_identifier": extract_version_external_identifier(item),
-        "size": extract_version_size(item),
-        "created_at": extract_version_created_at(item),
+        "bundle_version": label,
+        "version": label,
+        "external_identifier": external_identifier,
+        "version_id": if external_identifier > 0 { external_identifier.to_string() } else { item.get("version_id").and_then(|v| v.as_str()).unwrap_or("").to_string() },
+        "size": size,
+        "size_bytes": if size > 0 { Some(size) } else { None },
+        "created_at": created_at,
+        "released_at": item.get("released_at").and_then(|v| v.as_str()).unwrap_or(&created_at).to_string(),
+        "description": item.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        "source": source,
     })
 }
 
@@ -633,13 +666,31 @@ fn merge_version_lists(primary: Vec<Value>, secondary: Vec<Value>) -> Vec<Value>
     merged
 }
 
-// 查询版本
-async fn get_versions(query: web::Query<VersionQuery>) -> impl Responder {
-    let appid = &query.appid;
-    let region = query.region.as_deref().unwrap_or("US");
+fn with_version_source(items: Vec<Value>, source: &str) -> Vec<Value> {
+    items
+        .into_iter()
+        .map(|mut item| {
+            if let Some(obj) = item.as_object_mut() {
+                obj.entry("source".to_string())
+                    .or_insert_with(|| serde_json::json!(source));
+            }
+            item
+        })
+        .collect()
+}
 
+async fn fetch_external_version_source(url: String, source: &'static str) -> Vec<Value> {
     let client = build_http_client();
+    match client.get(url).send().await {
+        Ok(resp) if resp.status().is_success() => match resp.json::<Value>().await {
+            Ok(json) => with_version_source(extract_version_array(&json), source),
+            Err(_) => vec![],
+        },
+        _ => vec![],
+    }
+}
 
+async fn fetch_external_version_sources(appid: &str, region: &str) -> Vec<Value> {
     let url1 = format!(
         "https://api.timbrd.com/apple/app-version/index.php?id={}&country={}",
         appid, region
@@ -649,44 +700,97 @@ async fn get_versions(query: web::Query<VersionQuery>) -> impl Responder {
         appid, region
     );
 
-    let response1 = client.get(&url1).send();
-    let response2 = client.get(&url2).send();
-    let (response1, response2) = futures_util::future::join(response1, response2).await;
+    let (versions1, versions2) = futures_util::future::join(
+        fetch_external_version_source(url1, "timbrd"),
+        fetch_external_version_source(url2, "bilin"),
+    )
+    .await;
 
-    let versions1 = if let Ok(resp) = response1 {
-        if let Ok(json) = resp.json::<serde_json::Value>().await {
-            extract_version_array(&json)
-        } else {
-            vec![]
+    merge_version_lists(versions1, versions2)
+}
+
+fn community_versions_to_values(app: &CommunityDelistedAppDetail) -> Vec<Value> {
+    app.versions
+        .iter()
+        .map(|version| {
+            let external_identifier = version.version_id.trim().parse::<i64>().unwrap_or(0);
+            let size = version.size_bytes.unwrap_or(0);
+            serde_json::json!({
+                "bundle_version": version.version,
+                "version": version.version,
+                "external_identifier": external_identifier,
+                "version_id": version.version_id,
+                "size": size,
+                "size_bytes": version.size_bytes,
+                "created_at": version.released_at.clone().unwrap_or_default(),
+                "released_at": version.released_at.clone().unwrap_or_default(),
+                "description": version.description.clone().unwrap_or_default(),
+                "source": if version.source.trim().is_empty() { "community" } else { version.source.as_str() },
+            })
+        })
+        .collect()
+}
+
+fn version_numeric_parts(label: &str) -> Vec<i64> {
+    label
+        .split(|ch: char| !ch.is_ascii_alphanumeric())
+        .filter_map(|part| part.parse::<i64>().ok())
+        .collect()
+}
+
+fn compare_versions_desc(a: &Value, b: &Value) -> std::cmp::Ordering {
+    let left = version_numeric_parts(&extract_version_label(a));
+    let right = version_numeric_parts(&extract_version_label(b));
+    let max_len = left.len().max(right.len());
+    for index in 0..max_len {
+        let av = left.get(index).copied().unwrap_or(0);
+        let bv = right.get(index).copied().unwrap_or(0);
+        if av != bv {
+            return bv.cmp(&av);
         }
-    } else {
-        vec![]
-    };
+    }
+    extract_version_created_at(b).cmp(&extract_version_created_at(a))
+}
 
-    let versions2 = if let Ok(resp) = response2 {
-        if let Ok(json) = resp.json::<serde_json::Value>().await {
-            extract_version_array(&json)
-        } else {
-            vec![]
-        }
-    } else {
-        vec![]
-    };
+// 查询版本：聚合 ipa-archive 社区归档 + timbrd + bilin
+async fn get_versions(query: web::Query<VersionQuery>) -> impl Responder {
+    let appid = query.appid.trim();
+    let region = query.region.as_deref().unwrap_or("US");
 
-    let final_versions = merge_version_lists(versions1, versions2);
+    let (community_app, external_versions) = futures_util::future::join(
+        fetch_community_delisted_app(appid),
+        fetch_external_version_sources(appid, region),
+    )
+    .await;
 
-    let formatted_versions: Vec<serde_json::Value> = final_versions
+    let community_versions = community_app
+        .as_ref()
+        .map(community_versions_to_values)
+        .unwrap_or_default();
+
+    // 社区归档优先作为 primary，第三方接口只补 size/date 等缺失字段。
+    let mut final_versions = merge_version_lists(community_versions, external_versions);
+    final_versions.sort_by(compare_versions_desc);
+
+    let formatted_versions: Vec<Value> = final_versions
         .iter()
         .map(format_version_item)
         .filter(|v| {
-            v.get("bundle_version")
+            let label_ok = v
+                .get("bundle_version")
                 .and_then(|bv| bv.as_str())
-                .map(|s| !s.is_empty())
+                .map(|s| !s.trim().is_empty())
+                .unwrap_or(false);
+            let id_ok = v
+                .get("external_identifier")
+                .and_then(|ei| ei.as_i64())
+                .map(|id| id > 0)
                 .unwrap_or(false)
-                && v.get("external_identifier")
-                    .and_then(|ei| ei.as_i64())
-                    .map(|id| id > 0)
-                    .unwrap_or(false)
+                || v.get("version_id")
+                    .and_then(|id| id.as_str())
+                    .map(|id| !id.trim().is_empty())
+                    .unwrap_or(false);
+            label_ok && id_ok
         })
         .collect();
 
@@ -5246,6 +5350,15 @@ fn parse_delisted_lite_index(data: Value) -> CommunityDelistedLiteIndex {
 }
 
 async fn fetch_community_delisted_index() -> CommunityDelistedLiteIndex {
+    {
+        let cache = COMMUNITY_DELISTED_INDEX_CACHE.read().await;
+        if let Some((cached_at, index)) = cache.as_ref() {
+            if cached_at.elapsed().as_secs() < COMMUNITY_ARCHIVE_CACHE_TTL_SECS {
+                return index.clone();
+            }
+        }
+    }
+
     let client = build_http_client();
     let candidates = [
         format!(
@@ -5263,6 +5376,8 @@ async fn fetch_community_delisted_index() -> CommunityDelistedLiteIndex {
             if let Ok(data) = resp.json::<Value>().await {
                 let index = parse_delisted_lite_index(data);
                 if !index.apps.is_empty() {
+                    let mut cache = COMMUNITY_DELISTED_INDEX_CACHE.write().await;
+                    *cache = Some((Instant::now(), index.clone()));
                     return index;
                 }
             }
@@ -5272,7 +5387,16 @@ async fn fetch_community_delisted_index() -> CommunityDelistedLiteIndex {
     CommunityDelistedLiteIndex::default()
 }
 
-async fn fetch_community_delisted_app(app_id: &str) -> Option<ArchiveApp> {
+async fn fetch_community_delisted_app(app_id: &str) -> Option<CommunityDelistedAppDetail> {
+    {
+        let cache = COMMUNITY_DELISTED_APP_CACHE.read().await;
+        if let Some((cached_at, app)) = cache.get(app_id) {
+            if cached_at.elapsed().as_secs() < COMMUNITY_ARCHIVE_CACHE_TTL_SECS {
+                return Some(app.clone());
+            }
+        }
+    }
+
     let client = build_http_client();
     let url = format!(
         "{}/{}",
@@ -5283,33 +5407,52 @@ async fn fetch_community_delisted_app(app_id: &str) -> Option<ArchiveApp> {
     if !response.status().is_success() {
         return None;
     }
-    response.json::<ArchiveApp>().await.ok()
+    let app = response.json::<CommunityDelistedAppDetail>().await.ok()?;
+    {
+        let mut cache = COMMUNITY_DELISTED_APP_CACHE.write().await;
+        cache.insert(app_id.to_string(), (Instant::now(), app.clone()));
+    }
+    Some(app)
 }
 
 /// 检查应用是否仍在 App Store 上架
 /// 返回 true 表示仍在商店（不应作为下架候选）
 async fn check_app_still_on_store(app_id: &str) -> bool {
+    {
+        let cache = STORE_STATUS_CACHE.read().await;
+        if let Some((cached_at, still_on_store)) = cache.get(app_id) {
+            if cached_at.elapsed().as_secs() < STORE_STATUS_CACHE_TTL_SECS {
+                return *still_on_store;
+            }
+        }
+    }
+
     let url = format!(
         "https://itunes.apple.com/lookup?id={}&country=CN",
         urlencoding::encode(app_id)
     );
     let client = build_http_client();
-    let response = match client.get(&url).send().await {
-        Ok(r) => r,
-        Err(_) => return false, // 网络失败时保守认为不在商店
-    };
-    if !response.status().is_success() {
-        return false;
-    }
-    match response.json::<serde_json::Value>().await {
-        Ok(json) => {
-            json.get("resultCount")
-                .and_then(|v| v.as_i64())
-                .unwrap_or(0)
-                > 0
+    let still_on_store = match client.get(&url).send().await {
+        Ok(response) if response.status().is_success() => {
+            match response.json::<serde_json::Value>().await {
+                Ok(json) => {
+                    json.get("resultCount")
+                        .and_then(|v| v.as_i64())
+                        .unwrap_or(0)
+                        > 0
+                }
+                Err(_) => false,
+            }
         }
-        Err(_) => false,
+        _ => false,
+    };
+
+    {
+        let mut cache = STORE_STATUS_CACHE.write().await;
+        cache.insert(app_id.to_string(), (Instant::now(), still_on_store));
     }
+
+    still_on_store
 }
 
 /// 从本地 archive JSON 补全应用元信息（名称、图标）
@@ -6117,6 +6260,15 @@ async fn get_community_delisted_app(path: web::Path<String>) -> impl Responder {
 }
 
 async fn get_local_delisted_candidates(data: web::Data<AppState>) -> impl Responder {
+    {
+        let cache = LOCAL_DELISTED_CANDIDATES_CACHE.read().await;
+        if let Some((cached_at, candidates)) = cache.as_ref() {
+            if cached_at.elapsed().as_secs() < LOCAL_DELISTED_CANDIDATES_CACHE_TTL_SECS {
+                return HttpResponse::Ok().json(ApiResponse::success(candidates.clone()));
+            }
+        }
+    }
+
     let records = {
         let db = data.db.lock().unwrap_or_else(|e| e.into_inner());
         normalize_download_record_artifact_paths(&db, &data.downloads_dir);
@@ -6124,6 +6276,10 @@ async fn get_local_delisted_candidates(data: web::Data<AppState>) -> impl Respon
         db.get_all_download_records().unwrap_or_default()
     };
     let candidates = build_local_delisted_candidates(records).await;
+    {
+        let mut cache = LOCAL_DELISTED_CANDIDATES_CACHE.write().await;
+        *cache = Some((Instant::now(), candidates.clone()));
+    }
     HttpResponse::Ok().json(ApiResponse::success(candidates))
 }
 
