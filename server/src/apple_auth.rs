@@ -400,6 +400,17 @@ impl Store {
         let mut inferred_region: Option<String> = None;
 
         for attempt in 1..=4u32 {
+            // Exponential backoff between retries: 1s, 2s, 4s
+            if attempt > 1 {
+                let delay_secs = 1u64 << (attempt - 2); // 1, 2, 4
+                log::debug!(
+                    "Apple auth retry backoff: {}s before attempt {}",
+                    delay_secs,
+                    attempt
+                );
+                tokio::time::sleep(std::time::Duration::from_secs(delay_secs)).await;
+            }
+
             let combined_password = format!("{}{}", password, mfa.unwrap_or("").replace(' ', ""));
 
             let auth_body = build_xml_plist_body(&[
@@ -414,7 +425,7 @@ impl Store {
             .map_err(|e| format!("build auth plist failed: {}", e))?;
 
             log::info!(
-                "Apple auth attempt {}: url={}, has_mfa={}, guid={}, body=plist+xml/form-urlencoded",
+                "Apple auth attempt {}/4: url={}, has_mfa={}, guid={}",
                 attempt,
                 url,
                 mfa.is_some(),
@@ -470,6 +481,30 @@ impl Store {
                 body_text.len()
             );
 
+            // Detect non-plist error responses before parsing
+            if status == StatusCode::TOO_MANY_REQUESTS {
+                log::warn!(
+                    "Apple auth rate limited (attempt {}/4): {}",
+                    attempt,
+                    body_text.trim()
+                );
+                let mut m = HashMap::new();
+                m.insert("_state".to_string(), Value::String("failure".to_string()));
+                m.insert(
+                    "failureType".to_string(),
+                    Value::String("RateLimited".to_string()),
+                );
+                m.insert(
+                    "customerMessage".to_string(),
+                    Value::String(
+                        "Apple 频率限制 (429)，请等待 15-30 分钟后再试"
+                            .to_string(),
+                    ),
+                );
+                // Don't retry on 429 — each retry burns more quota
+                return Ok(m);
+            }
+
             // Parse plist response
             let mut result = match parse_apple_plist_response(&body_text) {
                 Ok(m) => m,
@@ -486,9 +521,16 @@ impl Store {
                         "failureType".to_string(),
                         Value::String("ParseError".to_string()),
                     );
+                    let hint = if body_text.contains("Rate limit") {
+                        "Apple 频率限制 (429)，请等待 15-30 分钟后再试"
+                    } else if body_text.len() < 200 {
+                        &body_text
+                    } else {
+                        "无法解析 Apple 的响应，请稍后重试"
+                    };
                     m.insert(
                         "customerMessage".to_string(),
-                        Value::String("无法解析 Apple 的响应，请稍后重试".to_string()),
+                        Value::String(hint.to_string()),
                     );
                     return Ok(m);
                 }
