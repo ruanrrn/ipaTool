@@ -56,6 +56,9 @@ struct AuthenticatedAdmin {
 /// 对已保存密码且距上次认证超过 REFRESH_AFTER_SECS 的账号自动刷新。
 const ACCOUNT_REFRESH_CHECK_INTERVAL_SECS: u64 = 300; // 5 分钟检查一次
 const ACCOUNT_REFRESH_AFTER_SECS: u64 = 1800; // 30 分钟后视为需要刷新
+const ACCOUNT_REFRESH_BACKOFF_BASE_SECS: u64 = 300; // 失败退避基数 5min
+const ACCOUNT_REFRESH_BACKOFF_CAP_SECS: u64 = 4800; // 退避上限 80min
+const ACCOUNT_REFRESH_RATE_LIMIT_BACKOFF_SECS: u64 = 1800; // 429 固定惩罚 30min
 
 // 应用状态
 struct AppState {
@@ -125,12 +128,30 @@ fn github_contents_api_path(file_path: &str) -> String {
 /// 每隔 ACCOUNT_REFRESH_CHECK_INTERVAL_SECS 扫描一次所有已登录账号，
 /// 对"已保存密码"且"距上次认证超过 ACCOUNT_REFRESH_AFTER_SECS"的账号
 /// 使用保存的密码重新认证，刷新 passwordToken。
+///
+/// 失败退避策略：
+/// - 每次认证失败后，该账号进入指数退避：min(5min * 2^failures, 80min)
+/// - 遇到 429 Rate Limit 时，固定退避 30min（不叠加指数）
+/// - 成功后重置失败计数
+/// - 启动后首次扫描跳过（避免启动风暴）
 async fn account_auto_refresh_loop(db_arc: Arc<Mutex<Database>>) {
+    // Per-email failure tracking: (consecutive_failures, backoff_deadline)
+    let mut failure_state: std::collections::HashMap<String, (u32, std::time::Instant)> =
+        std::collections::HashMap::new();
+    let mut first_loop = true;
+
     loop {
         tokio::time::sleep(std::time::Duration::from_secs(
             ACCOUNT_REFRESH_CHECK_INTERVAL_SECS,
         ))
         .await;
+
+        // Stagger: skip the very first check to avoid post-restart auth storm
+        if first_loop {
+            first_loop = false;
+            log::info!("[account-auto-refresh] first cycle skipped (post-startup stagger)");
+            continue;
+        }
 
         // 1. 收集需要刷新的账号：token → email
         let accounts_to_refresh: Vec<(String, String)> = {
@@ -167,7 +188,7 @@ async fn account_auto_refresh_loop(db_arc: Arc<Mutex<Database>>) {
             }
         };
 
-        // 3. 逐个刷新
+        // 3. 逐个刷新（带退避检查）
         for (token, email) in &accounts_to_refresh {
             if !saved_emails.contains(email.as_str()) {
                 log::debug!(
@@ -175,6 +196,22 @@ async fn account_auto_refresh_loop(db_arc: Arc<Mutex<Database>>) {
                     email
                 );
                 continue;
+            }
+
+            // 检查退避截止时间
+            if let Some((failures, deadline)) = failure_state.get(email.as_str()) {
+                if std::time::Instant::now() < *deadline {
+                    let remaining = deadline
+                        .duration_since(std::time::Instant::now())
+                        .as_secs();
+                    log::debug!(
+                        "[account-auto-refresh] skip {} (backoff {}s remaining, failures={})",
+                        email,
+                        remaining,
+                        failures
+                    );
+                    continue;
+                }
             }
 
             // 解密密码
@@ -230,21 +267,76 @@ async fn account_auto_refresh_loop(db_arc: Arc<Mutex<Database>>) {
                                 &token[..8.min(token.len())]
                             );
                         }
+                        // 成功后重置退避
+                        failure_state.remove(email.as_str());
                     } else {
-                        let err_msg = result
+                        let failure_type = result
+                            .get("failureType")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("");
+                        let customer_msg = result
                             .get("customerMessage")
-                            .or(result.get("failureType"))
                             .and_then(|v| v.as_str())
                             .unwrap_or("unknown failure");
-                        log::warn!(
-                            "[account-auto-refresh] auth failed for {}: {}",
-                            email,
-                            err_msg
-                        );
+
+                        // 判断是否为 429 rate limit
+                        let is_rate_limit = customer_msg.contains("Rate limit has been exceeded");
+
+                        let entry = failure_state
+                            .entry(email.clone())
+                            .or_insert((0, std::time::Instant::now()));
+                        entry.0 += 1;
+
+                        let backoff_secs = if is_rate_limit {
+                            // 429: fixed long backoff, don't compound
+                            log::warn!(
+                                "[account-auto-refresh] rate limited for {}: 429 — backing off {}min (was {} consecutive failures)",
+                                email,
+                                ACCOUNT_REFRESH_RATE_LIMIT_BACKOFF_SECS / 60,
+                                entry.0
+                            );
+                            ACCOUNT_REFRESH_RATE_LIMIT_BACKOFF_SECS
+                        } else {
+                            let base = ACCOUNT_REFRESH_BACKOFF_BASE_SECS;
+                            let cap = ACCOUNT_REFRESH_BACKOFF_CAP_SECS;
+                            let delay = std::cmp::min(
+                                base.saturating_mul(1u64 << (entry.0 - 1).min(6)),
+                                cap,
+                            );
+                            log::warn!(
+                                "[account-auto-refresh] auth failed for {}: {} (type={}) — backing off {}min (failure #{})",
+                                email,
+                                customer_msg,
+                                failure_type,
+                                delay / 60,
+                                entry.0
+                            );
+                            delay
+                        };
+
+                        entry.1 =
+                            std::time::Instant::now() + std::time::Duration::from_secs(backoff_secs);
                     }
                 }
                 Err(e) => {
-                    log::error!("[account-auto-refresh] auth error for {}: {}", email, e);
+                    let entry = failure_state
+                        .entry(email.clone())
+                        .or_insert((0, std::time::Instant::now()));
+                    entry.0 += 1;
+                    let delay = std::cmp::min(
+                        ACCOUNT_REFRESH_BACKOFF_BASE_SECS
+                            .saturating_mul(1u64 << (entry.0 - 1).min(6)),
+                        ACCOUNT_REFRESH_BACKOFF_CAP_SECS,
+                    );
+                    log::error!(
+                        "[account-auto-refresh] auth error for {}: {} — backing off {}min (failure #{})",
+                        email,
+                        e,
+                        delay / 60,
+                        entry.0
+                    );
+                    entry.1 =
+                        std::time::Instant::now() + std::time::Duration::from_secs(delay);
                 }
             }
         }

@@ -39,3 +39,5 @@ urlencoding = "2.1"
 
 # 锁定 time crate 版本，避免 edition2024 问题
 time = { version = "=0.3.36", features = ["serde"] }
+[profile.dev]
+debug = 1          # line-tables only (full=2 produces multi-GB debug artifacts)
