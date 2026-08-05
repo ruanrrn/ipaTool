@@ -711,7 +711,7 @@ async fn health(data: web::Data<AppState>) -> impl Responder {
 
     // Check DB connectivity
     let db_ok = match data.db.lock() {
-        Ok(db) => db.get_admin_user("__health_check__").is_ok() || true,
+        Ok(db) => db.get_admin_user("__health_check__").is_ok(),
         Err(_) => false,
     };
     checks.push(serde_json::json!({
@@ -725,7 +725,7 @@ async fn health(data: web::Data<AppState>) -> impl Responder {
             .map(|m| m.is_dir())
             .unwrap_or(false);
     let writable = std::fs::File::create(data.downloads_dir.join(".health_check"))
-        .map(|f| drop(f))
+        .map(drop)
         .is_ok();
     let _ = std::fs::remove_file(data.downloads_dir.join(".health_check"));
     checks.push(serde_json::json!({
