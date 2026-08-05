@@ -40,7 +40,7 @@
 </template>
 
 <script setup>
-import { defineAsyncComponent, onMounted, onUnmounted, ref } from 'vue'
+import { defineAsyncComponent, onErrorCaptured, onMounted, onUnmounted, ref, watch } from 'vue'
 import { API_BASE } from './config.js'
 import { apiFetch } from './utils/api.js'
 
@@ -59,6 +59,40 @@ const appStore = useAppStore()
 const notifications = useNotifications()
 
 const authState = ref('loading')
+const appError = ref(null)
+const isOnline = ref(navigator.onLine)
+
+// ── P1-14: Global error boundary ──────────────────────────────
+onErrorCaptured((err, instance, info) => {
+  console.error('[error-boundary]', err, info)
+  appError.value = err.message || 'An unexpected error occurred'
+  // Don't propagate — prevent white-screen crashes
+  return false
+})
+
+watch(appError, (val) => {
+  if (val) {
+    import('./components/MobileToast.vue').then(({ Toast }) => {
+      Toast.error(val)
+    }).catch(() => {})
+  }
+})
+
+// ── P1-15: Offline detection ──────────────────────────────────
+const handleOnline = () => { isOnline.value = true }
+const handleOffline = () => { isOnline.value = false }
+
+watch(isOnline, (online) => {
+  if (online) {
+    import('./components/MobileToast.vue').then(({ Toast }) => {
+      Toast.success('网络已恢复')
+    }).catch(() => {})
+  } else {
+    import('./components/MobileToast.vue').then(({ Toast }) => {
+      Toast.warning('网络已断开，部分功能不可用')
+    }).catch(() => {})
+  }
+})
 
 useKeyboardAware()
 
@@ -133,20 +167,27 @@ const handleClearQueue = () => appStore.clearQueue()
 const handleAccountsUpdated = () => appStore.triggerAccountsUpdate()
 
 onMounted(() => {
- // Apply saved accent color
- const savedAccentColor = localStorage.getItem(STORAGE_KEYS.ACCENT_COLOR)
- if (savedAccentColor) {
-   applyAccentColor(savedAccentColor)
- }
- lockRootViewport()
- // If savedAppearance === 'light', useDark already loaded isDark=false, no action needed
- checkAuth()
- notifications.init()
+  // Apply saved accent color
+  const savedAccentColor = localStorage.getItem(STORAGE_KEYS.ACCENT_COLOR)
+  if (savedAccentColor) {
+    applyAccentColor(savedAccentColor)
+  }
+  lockRootViewport()
+  // If savedAppearance === 'light', useDark already loaded isDark=false, no action needed
+  checkAuth()
+  notifications.init()
+
+  // Offline detection event listeners
+  window.addEventListener('online', handleOnline)
+  window.addEventListener('offline', handleOffline)
 })
 
 onUnmounted(() => {
- unlockRootViewport()
- notifications.stopVersionPolling()
+  unlockRootViewport()
+  notifications.stopVersionPolling()
+
+  window.removeEventListener('online', handleOnline)
+  window.removeEventListener('offline', handleOffline)
 })
 
 </script>
