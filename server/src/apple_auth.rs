@@ -496,10 +496,7 @@ impl Store {
                 );
                 m.insert(
                     "customerMessage".to_string(),
-                    Value::String(
-                        "Apple 频率限制 (429)，请等待 15-30 分钟后再试"
-                            .to_string(),
-                    ),
+                    Value::String("Apple 频率限制 (429)，请等待 15-30 分钟后再试".to_string()),
                 );
                 // Don't retry on 429 — each retry burns more quota
                 return Ok(m);

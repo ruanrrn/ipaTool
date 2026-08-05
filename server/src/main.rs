@@ -201,9 +201,7 @@ async fn account_auto_refresh_loop(db_arc: Arc<Mutex<Database>>) {
             // 检查退避截止时间
             if let Some((failures, deadline)) = failure_state.get(email.as_str()) {
                 if std::time::Instant::now() < *deadline {
-                    let remaining = deadline
-                        .duration_since(std::time::Instant::now())
-                        .as_secs();
+                    let remaining = deadline.duration_since(std::time::Instant::now()).as_secs();
                     log::debug!(
                         "[account-auto-refresh] skip {} (backoff {}s remaining, failures={})",
                         email,
@@ -314,8 +312,8 @@ async fn account_auto_refresh_loop(db_arc: Arc<Mutex<Database>>) {
                             delay
                         };
 
-                        entry.1 =
-                            std::time::Instant::now() + std::time::Duration::from_secs(backoff_secs);
+                        entry.1 = std::time::Instant::now()
+                            + std::time::Duration::from_secs(backoff_secs);
                     }
                 }
                 Err(e) => {
@@ -335,8 +333,7 @@ async fn account_auto_refresh_loop(db_arc: Arc<Mutex<Database>>) {
                         delay / 60,
                         entry.0
                     );
-                    entry.1 =
-                        std::time::Instant::now() + std::time::Duration::from_secs(delay);
+                    entry.1 = std::time::Instant::now() + std::time::Duration::from_secs(delay);
                 }
             }
         }

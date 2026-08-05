@@ -317,13 +317,18 @@ pub fn session_expires_at() -> String {
 /// Detect whether the server is running behind HTTPS (reverse proxy).
 /// Checks `FORCE_SECURE_COOKIE` env var; if unset, also checks common reverse-proxy headers.
 fn is_https_environment() -> bool {
-    if std::env::var("FORCE_SECURE_COOKIE").map(|v| v == "1" || v == "true").unwrap_or(false) {
+    if std::env::var("FORCE_SECURE_COOKIE")
+        .map(|v| v == "1" || v == "true")
+        .unwrap_or(false)
+    {
         return true;
     }
     // In production, the reverse proxy (nginx/Caddy) typically sets X-Forwarded-Proto.
     // Since we can't read headers at cookie-build time, default to secure=true
     // and let the deployer set FORCE_SECURE_COOKIE=0 for plain-HTTP dev setups.
-    std::env::var("FORCE_SECURE_COOKIE").map(|v| v == "0" || v == "false").is_err()
+    std::env::var("FORCE_SECURE_COOKIE")
+        .map(|v| v == "0" || v == "false")
+        .is_err()
 }
 
 pub fn build_session_cookie(token: &str) -> Cookie<'static> {
