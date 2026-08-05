@@ -60,12 +60,87 @@ const ACCOUNT_REFRESH_BACKOFF_BASE_SECS: u64 = 300; // 失败退避基数 5min
 const ACCOUNT_REFRESH_BACKOFF_CAP_SECS: u64 = 4800; // 退避上限 80min
 const ACCOUNT_REFRESH_RATE_LIMIT_BACKOFF_SECS: u64 = 1800; // 429 固定惩罚 30min
 
+/// Per-IP and per-username login rate limiter.
+/// After LOGIN_RATE_LIMIT_MAX_FAILURES failed attempts within LOGIN_RATE_LIMIT_WINDOW,
+/// further attempts are rejected until the window elapses.
+struct LoginRateLimiter {
+    /// (attempt_count, last_attempt_time)
+    ip_attempts: HashMap<String, (u32, Instant)>,
+    user_attempts: HashMap<String, (u32, Instant)>,
+}
+
+impl LoginRateLimiter {
+    fn new() -> Self {
+        Self {
+            ip_attempts: HashMap::new(),
+            user_attempts: HashMap::new(),
+        }
+    }
+
+    fn cleanup_expired(&mut self, window: Duration) {
+        let now = Instant::now();
+        self.ip_attempts.retain(|_, (_, last)| now.duration_since(*last) < window);
+        self.user_attempts.retain(|_, (_, last)| now.duration_since(*last) < window);
+    }
+
+    fn check_and_record(&mut self, ip: &str, username: &str) -> Result<(), String> {
+        const MAX_FAILURES: u32 = 5;
+        let window = Duration::from_secs(900); // 15 minutes
+        let lockout = Duration::from_secs(900);
+
+        let now = Instant::now();
+        self.cleanup_expired(window);
+
+        // Check IP-based rate limit
+        if let Some((count, last)) = self.ip_attempts.get(ip) {
+            if *count >= MAX_FAILURES {
+                let elapsed = now.duration_since(*last);
+                if elapsed < lockout {
+                    let remaining = lockout.as_secs() - elapsed.as_secs();
+                    return Err(format!("请求过于频繁，请 {} 秒后再试", remaining));
+                }
+                // Lockout expired, remove entry (will be re-added on next failure)
+            }
+        }
+
+        // Check username-based rate limit (prevents distributed attacks)
+        if let Some((count, last)) = self.user_attempts.get(username) {
+            if *count >= MAX_FAILURES {
+                let elapsed = now.duration_since(*last);
+                if elapsed < lockout {
+                    let remaining = lockout.as_secs() - elapsed.as_secs();
+                    return Err(format!("该账号登录尝试过于频繁，请 {} 秒后再试", remaining));
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn record_failure(&mut self, ip: &str, username: &str) {
+        let now = Instant::now();
+        let entry = self.ip_attempts.entry(ip.to_string()).or_insert((0, now));
+        entry.0 += 1;
+        entry.1 = now;
+
+        let entry = self.user_attempts.entry(username.to_string()).or_insert((0, now));
+        entry.0 += 1;
+        entry.1 = now;
+    }
+
+    fn clear_success(&mut self, ip: &str, username: &str) {
+        self.ip_attempts.remove(ip);
+        self.user_attempts.remove(username);
+    }
+}
+
 // 应用状态
 struct AppState {
     db: Arc<Mutex<Database>>,
     download_manager: Arc<DownloadManager>,
     job_store: JobStore,
     downloads_dir: PathBuf,
+    login_rate_limiter: Arc<Mutex<LoginRateLimiter>>,
 }
 
 // 模拟的账号存储（生产环境应该使用数据库）
@@ -555,6 +630,41 @@ impl FromRequest for AuthenticatedAdmin {
                 .map_err(ErrorUnauthorized),
         )
     }
+}
+
+async fn security_headers<B>(
+    req: ServiceRequest,
+    next: Next<B>,
+) -> Result<ServiceResponse<EitherBody<B>>, Error>
+where
+    B: MessageBody + 'static,
+{
+    let res = next.call(req).await?;
+    let mut res = res.map_into_left_body();
+
+    let headers = res.headers_mut();
+    headers.insert(
+        actix_web::http::header::X_CONTENT_TYPE_OPTIONS,
+        actix_web::http::header::HeaderValue::from_static("nosniff"),
+    );
+    headers.insert(
+        actix_web::http::header::X_FRAME_OPTIONS,
+        actix_web::http::header::HeaderValue::from_static("DENY"),
+    );
+    headers.insert(
+        actix_web::http::header::X_XSS_PROTECTION,
+        actix_web::http::header::HeaderValue::from_static("1; mode=block"),
+    );
+    headers.insert(
+        actix_web::http::header::REFERRER_POLICY,
+        actix_web::http::header::HeaderValue::from_static("strict-origin-when-cross-origin"),
+    );
+    headers.insert(
+        actix_web::http::header::HeaderName::from_static("permissions-policy"),
+        actix_web::http::header::HeaderValue::from_static("camera=(), microphone=(), geolocation=()"),
+    );
+
+    Ok(res)
 }
 
 async fn require_auth<B>(
@@ -3912,11 +4022,12 @@ async fn refresh_login(
 }
 
 async fn admin_login(
-    req: web::Json<AdminLoginRequest>,
+    req: HttpRequest,
+    body: web::Json<AdminLoginRequest>,
     data: web::Data<AppState>,
 ) -> impl Responder {
-    let username = req.username.trim();
-    let password = req.password.trim();
+    let username = body.username.trim();
+    let password = body.password.trim();
 
     log::info!("[auth:login] attempt username={}", username);
 
@@ -3925,6 +4036,26 @@ async fn admin_login(
         return HttpResponse::BadRequest().json(ApiResponse::<String>::error(
             "用户名和密码不能为空".to_string(),
         ));
+    }
+
+    // Rate limiting: check IP and username-based limits
+    let client_ip = req
+        .connection_info()
+        .realip_remote_addr()
+        .unwrap_or("unknown")
+        .to_string();
+    {
+        let mut limiter = data.login_rate_limiter.lock().unwrap_or_else(|e| e.into_inner());
+        if let Err(reason) = limiter.check_and_record(&client_ip, username) {
+            log::warn!(
+                "[auth:login] rate-limited ip={} user={}: {}",
+                client_ip,
+                username,
+                reason
+            );
+            return HttpResponse::TooManyRequests()
+                .json(ApiResponse::<String>::error(reason));
+        }
     }
 
     let db = match data.db.lock() {
@@ -3941,6 +4072,8 @@ async fn admin_login(
         Ok(Some(user)) => user,
         Ok(None) => {
             log::warn!("[auth:login] user not found: {}", username);
+            data.login_rate_limiter.lock().unwrap_or_else(|e| e.into_inner())
+                .record_failure(&client_ip, username);
             return HttpResponse::Unauthorized()
                 .json(ApiResponse::<String>::error("用户名或密码错误".to_string()));
         }
@@ -3954,9 +4087,15 @@ async fn admin_login(
 
     if !verify_password(password, &user.password_hash) {
         log::warn!("[auth:login] wrong password for user={}", username);
+        data.login_rate_limiter.lock().unwrap_or_else(|e| e.into_inner())
+            .record_failure(&client_ip, username);
         return HttpResponse::Unauthorized()
             .json(ApiResponse::<String>::error("用户名或密码错误".to_string()));
     }
+
+    // Login succeeded — clear rate limit entries
+    data.login_rate_limiter.lock().unwrap_or_else(|e| e.into_inner())
+        .clear_success(&client_ip, username);
 
     let token = Uuid::new_v4().to_string();
     if let Err(e) = db.cleanup_expired_sessions() {
@@ -6737,6 +6876,7 @@ async fn main() -> std::io::Result<()> {
         download_manager: download_manager.clone(),
         job_store: JobStore::new(),
         downloads_dir,
+        login_rate_limiter: Arc::new(Mutex::new(LoginRateLimiter::new())),
     });
 
     // 启动 Apple 账号自动刷新后台任务
@@ -6749,6 +6889,7 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
          App::new()
+             .wrap(from_fn(security_headers))
              .app_data(web::JsonConfig::default().limit(2 * 1024 * 1024))
              .app_data(app_state.clone())
              .route("/i/{token}.plist", web::get().to(plist_from_token))
