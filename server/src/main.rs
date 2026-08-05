@@ -705,9 +705,46 @@ where
     Ok(next.call(req).await?.map_into_left_body())
 }
 
-// 健康检查
-async fn health() -> impl Responder {
-    HttpResponse::Ok().json(ApiResponse::<String>::success("OK".to_string()))
+// 健康检查 — 验证数据库连接、下载目录可写性
+async fn health(data: web::Data<AppState>) -> impl Responder {
+    let mut checks: Vec<serde_json::Value> = Vec::new();
+
+    // Check DB connectivity
+    let db_ok = match data.db.lock() {
+        Ok(db) => db.get_admin_user("__health_check__").is_ok(),
+        Err(_) => false,
+    };
+    checks.push(serde_json::json!({
+        "component": "database",
+        "status": if db_ok { "ok" } else { "unavailable" }
+    }));
+
+    // Check downloads directory
+    let dir_ok = data.downloads_dir.exists()
+        && std::fs::metadata(&data.downloads_dir)
+            .map(|m| m.is_dir())
+            .unwrap_or(false);
+    let writable = std::fs::File::create(data.downloads_dir.join(".health_check"))
+        .map(drop)
+        .is_ok();
+    let _ = std::fs::remove_file(data.downloads_dir.join(".health_check"));
+    checks.push(serde_json::json!({
+        "component": "downloads_dir",
+        "status": if dir_ok && writable { "ok" } else { "degraded" }
+    }));
+
+    let all_ok = db_ok && dir_ok && writable;
+
+    let body = serde_json::json!({
+        "status": if all_ok { "ok" } else { "degraded" },
+        "checks": checks
+    });
+
+    if all_ok {
+        HttpResponse::Ok().json(body)
+    } else {
+        HttpResponse::ServiceUnavailable().json(body)
+    }
 }
 
 fn extract_version_array(json: &Value) -> Vec<Value> {
