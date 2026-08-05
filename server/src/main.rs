@@ -3288,9 +3288,9 @@ async fn search_app(
     let url = format!(
         "https://itunes.apple.com/search?term={}&country={}&media={}&limit={}",
         urlencoding::encode(term),
-        region,
-        media,
-        limit
+        urlencoding::encode(region),
+        urlencoding::encode(media),
+        urlencoding::encode(limit)
     );
 
     let client = build_http_client();
@@ -3953,14 +3953,7 @@ async fn admin_login(
     };
 
     if !verify_password(password, &user.password_hash) {
-        eprintln!(
-            "[DEBUG] wrong password: user={}, hash_prefix={}, hash_len={}, pass_len={}, pass={}",
-            username,
-            &user.password_hash[..8.min(user.password_hash.len())],
-            user.password_hash.len(),
-            password.len(),
-            password
-        );
+        log::warn!("[auth:login] wrong password for user={}", username);
         return HttpResponse::Unauthorized()
             .json(ApiResponse::<String>::error("用户名或密码错误".to_string()));
     }
