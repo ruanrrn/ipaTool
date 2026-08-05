@@ -79,8 +79,10 @@ impl LoginRateLimiter {
 
     fn cleanup_expired(&mut self, window: Duration) {
         let now = Instant::now();
-        self.ip_attempts.retain(|_, (_, last)| now.duration_since(*last) < window);
-        self.user_attempts.retain(|_, (_, last)| now.duration_since(*last) < window);
+        self.ip_attempts
+            .retain(|_, (_, last)| now.duration_since(*last) < window);
+        self.user_attempts
+            .retain(|_, (_, last)| now.duration_since(*last) < window);
     }
 
     fn check_and_record(&mut self, ip: &str, username: &str) -> Result<(), String> {
@@ -123,7 +125,10 @@ impl LoginRateLimiter {
         entry.0 += 1;
         entry.1 = now;
 
-        let entry = self.user_attempts.entry(username.to_string()).or_insert((0, now));
+        let entry = self
+            .user_attempts
+            .entry(username.to_string())
+            .or_insert((0, now));
         entry.0 += 1;
         entry.1 = now;
     }
@@ -658,7 +663,9 @@ where
     );
     headers.insert(
         actix_web::http::header::HeaderName::from_static("permissions-policy"),
-        actix_web::http::header::HeaderValue::from_static("camera=(), microphone=(), geolocation=()"),
+        actix_web::http::header::HeaderValue::from_static(
+            "camera=(), microphone=(), geolocation=()",
+        ),
     );
 
     Ok(res)
@@ -4042,7 +4049,10 @@ async fn admin_login(
         .unwrap_or("unknown")
         .to_string();
     {
-        let mut limiter = data.login_rate_limiter.lock().unwrap_or_else(|e| e.into_inner());
+        let mut limiter = data
+            .login_rate_limiter
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         if let Err(reason) = limiter.check_and_record(&client_ip, username) {
             log::warn!(
                 "[auth:login] rate-limited ip={} user={}: {}",
@@ -4050,8 +4060,7 @@ async fn admin_login(
                 username,
                 reason
             );
-            return HttpResponse::TooManyRequests()
-                .json(ApiResponse::<String>::error(reason));
+            return HttpResponse::TooManyRequests().json(ApiResponse::<String>::error(reason));
         }
     }
 
@@ -4069,7 +4078,9 @@ async fn admin_login(
         Ok(Some(user)) => user,
         Ok(None) => {
             log::warn!("[auth:login] user not found: {}", username);
-            data.login_rate_limiter.lock().unwrap_or_else(|e| e.into_inner())
+            data.login_rate_limiter
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
                 .record_failure(&client_ip, username);
             return HttpResponse::Unauthorized()
                 .json(ApiResponse::<String>::error("用户名或密码错误".to_string()));
@@ -4084,14 +4095,18 @@ async fn admin_login(
 
     if !verify_password(password, &user.password_hash) {
         log::warn!("[auth:login] wrong password for user={}", username);
-        data.login_rate_limiter.lock().unwrap_or_else(|e| e.into_inner())
+        data.login_rate_limiter
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
             .record_failure(&client_ip, username);
         return HttpResponse::Unauthorized()
             .json(ApiResponse::<String>::error("用户名或密码错误".to_string()));
     }
 
     // Login succeeded — clear rate limit entries
-    data.login_rate_limiter.lock().unwrap_or_else(|e| e.into_inner())
+    data.login_rate_limiter
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
         .clear_success(&client_ip, username);
 
     let token = Uuid::new_v4().to_string();
