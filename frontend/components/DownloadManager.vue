@@ -67,7 +67,7 @@
           v-if="searchResults.length > 0"
           class="search-results-list"
         >
-          <div
+          <button
             v-for="app in searchResults"
             :key="app.trackId"
             class="result-item"
@@ -106,10 +106,15 @@
                 </span>
               </div>
             </div>
-            <button
+            <span
               class="result-item__fav"
               :class="{ active: isAppFavorited(app.trackId) }"
               @click.stop="quickToggleFavorite(app)"
+              role="button"
+              :aria-label="isAppFavorited(app.trackId) ? '取消收藏' : '收藏'"
+              tabindex="0"
+              @keydown.enter.prevent="quickToggleFavorite(app)"
+              @keydown.space.prevent="quickToggleFavorite(app)"
             >
               <i><component :is="isAppFavorited(app.trackId) ? StarFilled : Star" /></i>
               <span
@@ -118,8 +123,8 @@
               >
                 {{ getArchivedVersionCount(app.trackId) }}
               </span>
-            </button>
-          </div>
+            </span>
+          </button>
         </div>
 
         <!-- Empty State -->

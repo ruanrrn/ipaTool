@@ -201,9 +201,7 @@ async fn account_auto_refresh_loop(db_arc: Arc<Mutex<Database>>) {
             // 检查退避截止时间
             if let Some((failures, deadline)) = failure_state.get(email.as_str()) {
                 if std::time::Instant::now() < *deadline {
-                    let remaining = deadline
-                        .duration_since(std::time::Instant::now())
-                        .as_secs();
+                    let remaining = deadline.duration_since(std::time::Instant::now()).as_secs();
                     log::debug!(
                         "[account-auto-refresh] skip {} (backoff {}s remaining, failures={})",
                         email,
@@ -314,8 +312,8 @@ async fn account_auto_refresh_loop(db_arc: Arc<Mutex<Database>>) {
                             delay
                         };
 
-                        entry.1 =
-                            std::time::Instant::now() + std::time::Duration::from_secs(backoff_secs);
+                        entry.1 = std::time::Instant::now()
+                            + std::time::Duration::from_secs(backoff_secs);
                     }
                 }
                 Err(e) => {
@@ -335,8 +333,7 @@ async fn account_auto_refresh_loop(db_arc: Arc<Mutex<Database>>) {
                         delay / 60,
                         entry.0
                     );
-                    entry.1 =
-                        std::time::Instant::now() + std::time::Duration::from_secs(delay);
+                    entry.1 = std::time::Instant::now() + std::time::Duration::from_secs(delay);
                 }
             }
         }
@@ -3288,9 +3285,9 @@ async fn search_app(
     let url = format!(
         "https://itunes.apple.com/search?term={}&country={}&media={}&limit={}",
         urlencoding::encode(term),
-        region,
-        media,
-        limit
+        urlencoding::encode(region),
+        urlencoding::encode(media),
+        urlencoding::encode(limit)
     );
 
     let client = build_http_client();
@@ -3953,14 +3950,7 @@ async fn admin_login(
     };
 
     if !verify_password(password, &user.password_hash) {
-        eprintln!(
-            "[DEBUG] wrong password: user={}, hash_prefix={}, hash_len={}, pass_len={}, pass={}",
-            username,
-            &user.password_hash[..8.min(user.password_hash.len())],
-            user.password_hash.len(),
-            password.len(),
-            password
-        );
+        log::warn!("[auth:login] wrong password for user={}", username);
         return HttpResponse::Unauthorized()
             .json(ApiResponse::<String>::error("用户名或密码错误".to_string()));
     }

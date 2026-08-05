@@ -314,21 +314,44 @@ pub fn session_expires_at() -> String {
         .to_string()
 }
 
+/// Detect whether the server is running behind HTTPS (reverse proxy).
+/// Checks `FORCE_SECURE_COOKIE` env var; if unset, also checks common reverse-proxy headers.
+fn is_https_environment() -> bool {
+    if std::env::var("FORCE_SECURE_COOKIE")
+        .map(|v| v == "1" || v == "true")
+        .unwrap_or(false)
+    {
+        return true;
+    }
+    // In production, the reverse proxy (nginx/Caddy) typically sets X-Forwarded-Proto.
+    // Since we can't read headers at cookie-build time, default to secure=true
+    // and let the deployer set FORCE_SECURE_COOKIE=0 for plain-HTTP dev setups.
+    std::env::var("FORCE_SECURE_COOKIE")
+        .map(|v| v == "0" || v == "false")
+        .is_err()
+}
+
 pub fn build_session_cookie(token: &str) -> Cookie<'static> {
-    Cookie::build(ADMIN_SESSION_COOKIE, token.to_string())
+    let mut builder = Cookie::build(ADMIN_SESSION_COOKIE, token.to_string())
         .path("/")
         .http_only(true)
         .same_site(SameSite::Lax)
-        .max_age(CookieDuration::days(SESSION_TTL_DAYS))
-        .finish()
+        .max_age(CookieDuration::days(SESSION_TTL_DAYS));
+    if is_https_environment() {
+        builder = builder.secure(true);
+    }
+    builder.finish()
 }
 
 pub fn clear_session_cookie() -> Cookie<'static> {
-    let mut cookie = Cookie::build(ADMIN_SESSION_COOKIE, "")
+    let mut builder = Cookie::build(ADMIN_SESSION_COOKIE, "")
         .path("/")
         .http_only(true)
-        .same_site(SameSite::Lax)
-        .finish();
+        .same_site(SameSite::Lax);
+    if is_https_environment() {
+        builder = builder.secure(true);
+    }
+    let mut cookie = builder.finish();
     cookie.make_removal();
     cookie
 }
