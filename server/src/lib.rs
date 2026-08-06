@@ -9,11 +9,12 @@ pub mod models;
 pub mod ota_install;
 pub mod signature;
 pub mod web_jobs;
+pub mod webdav;
 
 pub use apple_auth::{AccountStore, AuthInfo, Store};
 pub use database::{
     Account, AdminUser, BatchDownloadItem, BatchDownloadTask, Credentials, Database,
-    DownloadRecord, EncryptionKey, NewSubscription, SessionRecord, Subscription,
+    DownloadRecord, EncryptionKey, NewSubscription, SessionRecord, Subscription, WebDAVConfig,
 };
 
 pub use download_manager::{AppUpdate, BatchItem, DownloadManager};

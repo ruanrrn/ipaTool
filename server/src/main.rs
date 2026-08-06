@@ -2152,6 +2152,41 @@ async fn start_download_direct(
                     {
                         eprintln!("[record] Failed to save download record: {}", e);
                     }
+
+                    // WebDAV 自动上传（若已配置并启用）。
+                    // 先在独立作用域内读取配置并释放 DB 锁，避免 MutexGuard 跨 .await。
+                    let webdav_target = {
+                        let db_guard = db.lock().unwrap_or_else(|e| e.into_inner());
+                        db_guard
+                            .get_webdav_config()
+                            .ok()
+                            .flatten()
+                            .filter(|c| c.enabled)
+                            .and_then(|c| ipa_webtool_services::webdav::target_from_config(&c))
+                    };
+                    if let Some(target) = webdav_target {
+                        job_for_task
+                            .append_log("[webdav] 开始上传到 WebDAV…".to_string())
+                            .await;
+                        match ipa_webtool_services::webdav::upload_file(
+                            &target,
+                            Path::new(&file_path),
+                        )
+                        .await
+                        {
+                            Ok(remote_url) => {
+                                job_for_task
+                                    .append_log(format!("[webdav] 上传完成: {}", remote_url))
+                                    .await;
+                            }
+                            Err(e) => {
+                                job_for_task
+                                    .append_log(format!("[webdav] 上传失败: {}", e))
+                                    .await;
+                                log::warn!("[webdav] upload failed: {}", e);
+                            }
+                        }
+                    }
                 } else {
                     let message = "下载完成，但未找到产物文件".to_string();
                     job_for_task
@@ -5993,6 +6028,179 @@ async fn delete_github_token(
     }
 }
 
+// ===== WebDAV 配置 =====
+
+#[derive(Debug, Deserialize)]
+struct WebDAVConfigRequest {
+    enabled: bool,
+    url: String,
+    username: String,
+    password: String,
+    remote_path: String,
+}
+
+/// 获取 WebDAV 配置。出于安全，password 永不返回明文，只返回 masked。
+async fn get_webdav_config(
+    _admin: AuthenticatedAdmin,
+    data: web::Data<AppState>,
+) -> impl Responder {
+    match data
+        .db
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .get_webdav_config()
+    {
+        Ok(Some(config)) => {
+            let masked = mask_password(&config.password);
+            HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({
+                "enabled": config.enabled,
+                "url": config.url,
+                "username": config.username,
+                "password_configured": !config.password.is_empty(),
+                "password_masked": masked,
+                "remote_path": config.remote_path,
+                "updated_at": config.updated_at,
+            })))
+        }
+        Ok(None) => HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({
+            "enabled": false,
+            "url": "",
+            "username": "",
+            "password_configured": false,
+            "password_masked": "",
+            "remote_path": "/",
+            "updated_at": null,
+        }))),
+        Err(e) => HttpResponse::InternalServerError()
+            .json(ApiResponse::<()>::error(format!("获取 WebDAV 配置失败: {}", e))),
+    }
+}
+
+/// 保存 WebDAV 配置。
+/// password 为空字符串时表示「保持原密码不变」，后端读回原值再写入。
+async fn save_webdav_config(
+    _admin: AuthenticatedAdmin,
+    req: web::Json<WebDAVConfigRequest>,
+    data: web::Data<AppState>,
+) -> impl Responder {
+    // password 为空 = 保持原密码
+    let password = if req.password.is_empty() {
+        match data
+            .db
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get_webdav_config()
+        {
+            Ok(Some(existing)) => existing.password,
+            _ => String::new(),
+        }
+    } else {
+        req.password.clone()
+    };
+
+    match data
+        .db
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .upsert_webdav_config(
+            req.enabled,
+            req.url.trim(),
+            req.username.trim(),
+            &password,
+            req.remote_path.trim(),
+        ) {
+        Ok(_) => HttpResponse::Ok().json(ApiResponse::success(true)),
+        Err(e) => HttpResponse::InternalServerError()
+            .json(ApiResponse::<()>::error(format!("保存 WebDAV 配置失败: {}", e))),
+    }
+}
+
+/// 删除 WebDAV 配置（重置为默认/禁用）。
+async fn delete_webdav_config(
+    _admin: AuthenticatedAdmin,
+    data: web::Data<AppState>,
+) -> impl Responder {
+    match data
+        .db
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .delete_webdav_config()
+    {
+        Ok(_) => HttpResponse::Ok().json(ApiResponse::success(true)),
+        Err(e) => HttpResponse::InternalServerError()
+            .json(ApiResponse::<()>::error(format!("删除 WebDAV 配置失败: {}", e))),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct WebDAVTestRequest {
+    url: String,
+    username: String,
+    password: String,
+    remote_path: String,
+}
+
+/// 测试 WebDAV 连接（不保存配置，仅验证可达性 + 凭据）。
+async fn test_webdav_connection(
+    _admin: AuthenticatedAdmin,
+    req: web::Json<WebDAVTestRequest>,
+    data: web::Data<AppState>,
+) -> impl Responder {
+    // password 为空 = 用已保存的密码测试
+    let password = if req.password.is_empty() {
+        match data
+            .db
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get_webdav_config()
+        {
+            Ok(Some(existing)) => existing.password,
+            _ => String::new(),
+        }
+    } else {
+        req.password.clone()
+    };
+
+    let config = ipa_webtool_services::WebDAVConfig {
+        enabled: true,
+        url: req.url.trim().to_string(),
+        username: req.username.trim().to_string(),
+        password,
+        remote_path: req.remote_path.trim().to_string(),
+        updated_at: None,
+    };
+    let target = match ipa_webtool_services::webdav::target_from_config(&config) {
+        Some(t) => t,
+        None => {
+            return HttpResponse::BadRequest()
+                .json(ApiResponse::<()>::error("WebDAV URL 不能为空".to_string()))
+        }
+    };
+
+    match ipa_webtool_services::webdav::test_connection(&target).await {
+        Ok(_) => HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({
+            "ok": true,
+            "message": "连接成功"
+        }))),
+        Err(e) => HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({
+            "ok": false,
+            "message": e.0
+        }))),
+    }
+}
+
+/// 密码脱敏：只显示长度，不回显明文。
+fn mask_password(password: &str) -> String {
+    if password.is_empty() {
+        return String::new();
+    }
+    let len = password.len();
+    if len <= 4 {
+        return "*".repeat(len);
+    }
+    format!("{}****{}", &password[..1], &password[len - 1..])
+}
+
 /// 上传单个文件到 GitHub 仓库指定分支
 #[allow(clippy::too_many_arguments)]
 async fn github_upload_file(
@@ -7018,6 +7226,10 @@ async fn main() -> std::io::Result<()> {
                              .route("/github/token", web::get().to(get_github_token))
                              .route("/github/token", web::post().to(save_github_token))
                              .route("/github/token", web::delete().to(delete_github_token))
+                             .route("/webdav/config", web::get().to(get_webdav_config))
+                             .route("/webdav/config", web::post().to(save_webdav_config))
+                             .route("/webdav/config", web::delete().to(delete_webdav_config))
+                             .route("/webdav/test", web::post().to(test_webdav_connection))
                              .route("/community/publish", web::post().to(publish_community_archive))
                              .route("/local/delisted-candidates", web::get().to(get_local_delisted_candidates))
                              .route("/community/contributing-ids", web::get().to(get_contributing_ids))

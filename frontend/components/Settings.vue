@@ -33,6 +33,8 @@
 
         <SettingsAppearanceSection @navigate-to-appearance="emit('navigate-to-appearance')" />
 
+        <SettingsWebDAVSection />
+
         <SettingsSecuritySection
           @logout="confirmLogout"
           @navigate-to-changepassword="emit('navigate-to-changepassword')"
@@ -61,6 +63,7 @@ import SettingsAboutSection from './SettingsAboutSection.vue'
 import SettingsAppleAccountsSection from './SettingsAppleAccountsSection.vue'
 import SettingsAppearanceSection from './SettingsAppearanceSection.vue'
 import SettingsGithubTokenSection from './SettingsGithubTokenSection.vue'
+import SettingsWebDAVSection from './SettingsWebDAVSection.vue'
 import SettingsSecuritySection from './SettingsSecuritySection.vue'
 
 const emit = defineEmits(['logout', 'navigate-to-appearance', 'navigate-to-account', 'navigate-to-changepassword'])

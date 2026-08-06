@@ -59,10 +59,12 @@
       </div>
     </div>
 
-    <!-- Batch Download Queue -->
+    <!-- Batch download queue: disabled until backend trigger is wired into UI
+         (POST /batch-download has no frontend entry point). Kept for re-enablement.
     <div class="queue-page__batch px-5">
       <BatchQueue />
     </div>
+    -->
   </div>
 </template>
 
@@ -72,7 +74,6 @@ import { API_BASE } from '../config.js'
 
 import { Toast } from './MobileToast.vue'
 import { Confirm } from './MobileConfirm.vue'
-import BatchQueue from './BatchQueue.vue'
 import IpaActiveTasksSection from './IpaActiveTasksSection.vue'
 import IpaArtifactsSection from './IpaArtifactsSection.vue'
 import { useAppStore } from '../stores/app'
