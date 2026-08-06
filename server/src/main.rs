@@ -6928,15 +6928,15 @@ async fn main() -> std::io::Result<()> {
         login_rate_limiter: Arc::new(Mutex::new(LoginRateLimiter::new())),
     });
 
-    // 启动 Apple 账号自动刷新后台任务
-    tokio::spawn(async move {
-        account_auto_refresh_loop(db_arc).await;
-    });
+    // 启动 Apple 账号自动刷新后台任务。
+    // 返回 JoinHandle 以便在优雅关闭时显式中止，避免后台循环在 DB 句柄
+    // 释放后仍尝试写入（已通过 Arc<Mutex> 保护，但及时中止可减少无谓日志）。
+    let refresh_task = tokio::spawn(account_auto_refresh_loop(db_arc.clone()));
 
     let bind_address = "0.0.0.0:8080";
     log::info!("Starting server at {}", bind_address);
 
-    HttpServer::new(move || {
+    let server = HttpServer::new(move || {
          App::new()
              .wrap(from_fn(security_headers))
              .app_data(web::JsonConfig::default().limit(2 * 1024 * 1024))
@@ -7027,8 +7027,22 @@ async fn main() -> std::io::Result<()> {
              )
              // 托管前端静态文件
              .service(fs::Files::new("/", "./dist").index_file("index.html"))
-     })
-     .bind(bind_address)?
-     .run()
-     .await
+    })
+    .shutdown_timeout(SHUTDOWN_TIMEOUT_SECS);
+
+    log::info!(
+        "Graceful shutdown enabled: max {}s drain on SIGINT/SIGTERM",
+        SHUTDOWN_TIMEOUT_SECS
+    );
+
+    let result = server.bind(bind_address)?.run().await;
+
+    // 优雅关闭收尾：中止后台自动刷新循环，避免进程退出时残留 tokio 任务告警。
+    refresh_task.abort();
+
+    result
 }
+
+/// 接收到停机信号后，等待进行中的请求（含 SSE / 文件下载）完成的最长时间。
+/// 超过后强制断开。8s 是在“快速回收资源”与“大文件下载收尾”之间的折中。
+const SHUTDOWN_TIMEOUT_SECS: u64 = 8;

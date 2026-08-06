@@ -127,6 +127,59 @@
           </button>
         </div>
 
+        <!-- Search Loading Skeleton -->
+        <div
+          v-if="searching && searchResults.length === 0"
+          class="search-results-list search-results-list--skeleton"
+          aria-busy="true"
+          aria-label="搜索中"
+        >
+          <div
+            v-for="n in 5"
+            :key="`skeleton-${n}`"
+            class="result-item result-item--skeleton"
+          >
+            <div class="skeleton skeleton--icon" />
+            <div class="result-item__info result-item__info--skeleton">
+              <div class="skeleton skeleton--line skeleton--title" />
+              <div class="skeleton skeleton--line skeleton--sub" />
+              <div class="skeleton skeleton--tags">
+                <div class="skeleton skeleton--tag" />
+                <div class="skeleton skeleton--tag" />
+                <div class="skeleton skeleton--tag" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Search History (shown when no query, no results, no selected app) -->
+        <div
+          v-if="!searchQuery.trim() && searchResults.length === 0 && !selectedApp && searchHistory.length > 0"
+          class="search-history"
+        >
+          <div class="search-history__header">
+            <span class="search-history__title">最近搜索</span>
+            <button
+              class="search-history__clear"
+              type="button"
+              @click="clearSearchHistory"
+            >
+              清除
+            </button>
+          </div>
+          <div class="search-history__tags">
+            <button
+              v-for="item in searchHistory"
+              :key="`${item.region}:${item.query}:${item.ts}`"
+              class="search-history__tag"
+              type="button"
+              @click="searchQuery = item.query; handleSearch()"
+            >
+              {{ item.query }}
+            </button>
+          </div>
+        </div>
+
         <!-- Empty State -->
         <div
           v-if="!selectedApp && showHomeSections && activeTaskCount <= 0"
@@ -321,6 +374,8 @@ const {
  searchResultPurchaseStatusMap,
  searching,
  isAppIdInput,
+ searchHistory,
+ clearSearchHistory,
  handleSearch,
  selectApp,
   confirmDirectAppId: rawConfirmDirectAppId,
@@ -803,6 +858,107 @@ onBeforeUnmount(() => {
 
 .result-item:active {
  background: var(--color-border-light);
+}
+
+/* ===== Skeleton loading ===== */
+@keyframes skeleton-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.result-item--skeleton {
+  pointer-events: none;
+}
+.result-item--skeleton .skeleton,
+.search-history .skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-muted) 25%,
+    var(--color-border-light) 50%,
+    var(--color-surface-muted) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  border-radius: 6px;
+}
+.skeleton--icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+.result-item__info--skeleton {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.skeleton--line {
+  height: 14px;
+  border-radius: 4px;
+}
+.skeleton--title {
+  width: 60%;
+  height: 16px;
+}
+.skeleton--sub {
+  width: 40%;
+}
+.skeleton--tags {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+.skeleton--tag {
+  width: 52px;
+  height: 18px;
+  border-radius: 9px;
+}
+
+/* ===== Search history ===== */
+.search-history {
+  padding: 12px 0;
+}
+.search-history__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.search-history__title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.search-history__clear {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.search-history__clear:hover {
+  color: var(--color-text-secondary);
+  background: var(--color-surface-muted);
+}
+.search-history__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.search-history__tag {
+  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: 16px;
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.search-history__tag:hover {
+  background: var(--color-border-light);
 }
 
 .result-item__icon {

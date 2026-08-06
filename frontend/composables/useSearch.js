@@ -4,6 +4,31 @@ import { API_BASE } from '../config.js'
 import { apiFetch } from '../utils/api.js'
 
 /**
+ * 进程内搜索结果缓存。
+ * key = `${region}:${normalizedQuery}`，value = { results, purchaseMap, ts }。
+ * TTL 内重复搜索直接返回缓存，避免重复请求 iTunes Search API。
+ */
+const SEARCH_CACHE_TTL_MS = 60_000 // 1 分钟
+const SEARCH_CACHE_MAX_ENTRIES = 30
+const _searchCache = new Map()
+
+function searchCacheKey(region, query) {
+  return `${region || 'US'}:${String(query).trim().toLowerCase()}`
+}
+
+/** 最近搜索记录（纯本地，非持久化，key 同缓存）。 */
+const SEARCH_HISTORY_MAX = 10
+const _searchHistory = ref([])
+
+export function getSearchHistory() {
+  return _searchHistory.value
+}
+
+export function clearSearchHistory() {
+  _searchHistory.value = []
+}
+
+/**
  * Search composable for managing app search functionality.
  * Handles search queries, debounced search, results display,
  * and purchase status checking for search results.
@@ -74,29 +99,72 @@ export function useSearch(accounts, selectedAccount, onAppSelected, options = {}
       // Get current account's region
       const account = accounts.value[selectedAccount.value]
       const region = account?.region || 'US'
+      const cacheKey = searchCacheKey(region, query)
       let nextResults = []
+      let cached = false
 
-      // Check if it's a numeric App ID
-      if (/^\d+$/.test(query)) {
-        // Direct App ID lookup
-        const { data } = await apiFetch(`${API_BASE}/app-meta?appid=${encodeURIComponent(query)}&region=${encodeURIComponent(region)}`, { credentials: 'include' })
-        if (data.ok && data.data) {
-          nextResults = [data.data]
-        }
+      // 缓存命中：TTL 内直接复用，跳过网络请求
+      const cachedEntry = _searchCache.get(cacheKey)
+      const now = Date.now()
+      if (cachedEntry && now - cachedEntry.ts < SEARCH_CACHE_TTL_MS) {
+        nextResults = cachedEntry.results
+        cached = true
+        if (requestId !== currentSearchRequestId.value) return
+        searchResults.value = nextResults
+        searchResultPurchaseStatusMap.value = { ...cachedEntry.purchaseMap }
       } else {
-        // Search by name or bundle ID
-        const { data } = await apiFetch(`${API_BASE}/search?term=${encodeURIComponent(query)}&region=${encodeURIComponent(region)}&media=software&limit=10`, { credentials: 'include' })
-        if (data.ok) {
-          nextResults = data.data || []
+        // Check if it's a numeric App ID
+        if (/^\d+$/.test(query)) {
+          // Direct App ID lookup
+          const { data } = await apiFetch(`${API_BASE}/app-meta?appid=${encodeURIComponent(query)}&region=${encodeURIComponent(region)}`, { credentials: 'include' })
+          if (data.ok && data.data) {
+            nextResults = [data.data]
+          }
+        } else {
+          // Search by name or bundle ID
+          const { data } = await apiFetch(`${API_BASE}/search?term=${encodeURIComponent(query)}&region=${encodeURIComponent(region)}&media=software&limit=10`, { credentials: 'include' })
+          if (data.ok) {
+            nextResults = data.data || []
+          }
+        }
+
+        if (requestId !== currentSearchRequestId.value) {
+          return
+        }
+
+        searchResults.value = nextResults
+        await refreshSearchResultsPurchaseStatus(nextResults, account?.token, requestId)
+
+        // 写入缓存（快照当前 results + purchaseMap）
+        if (nextResults.length > 0) {
+          _searchCache.set(cacheKey, {
+            results: nextResults,
+            purchaseMap: { ...searchResultPurchaseStatusMap.value },
+            ts: Date.now(),
+          })
+          // LRU 淘汰
+          if (_searchCache.size > SEARCH_CACHE_MAX_ENTRIES) {
+            const firstKey = _searchCache.keys().next().value
+            _searchCache.delete(firstKey)
+          }
         }
       }
 
-      if (requestId !== currentSearchRequestId.value) {
-        return
+      // 记录搜索历史（去重，移到最前；仅在文字搜索且有结果时）
+      if (!/^\d+$/.test(query) && nextResults.length > 0) {
+        const lower = query.trim().toLowerCase()
+        const idx = _searchHistory.value.findIndex(h => h.query.toLowerCase() === lower && h.region === region)
+        if (idx >= 0) _searchHistory.value.splice(idx, 1)
+        _searchHistory.value.unshift({ query: query.trim(), region, ts: Date.now() })
+        if (_searchHistory.value.length > SEARCH_HISTORY_MAX) {
+          _searchHistory.value.length = SEARCH_HISTORY_MAX
+        }
       }
 
-      searchResults.value = nextResults
-      await refreshSearchResultsPurchaseStatus(nextResults, account?.token, requestId)
+      // 缓存命中时跳过 purchase 刷新（已随快照恢复）
+      if (!cached) {
+        // purchase 已在上方刷新
+      }
     } catch (error) {
       console.error('Search failed:', error)
       if (requestId === currentSearchRequestId.value) {
@@ -308,12 +376,17 @@ export function useSearch(accounts, selectedAccount, onAppSelected, options = {}
     searchResultPurchaseStatusMap,
     searching,
     isAppIdInput,
+    searchHistory: _searchHistory,
 
     // Actions
     handleSearch,
     selectApp,
     confirmDirectAppId,
     refreshSearchResultsPurchaseStatus,
+    clearSearchHistory: () => {
+      _searchHistory.value = []
+      _searchCache.clear()
+    },
 
     // Helpers
     getSearchResultCategory,
