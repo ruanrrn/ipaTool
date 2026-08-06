@@ -6071,8 +6071,10 @@ async fn get_webdav_config(
             "remote_path": "/",
             "updated_at": null,
         }))),
-        Err(e) => HttpResponse::InternalServerError()
-            .json(ApiResponse::<()>::error(format!("获取 WebDAV 配置失败: {}", e))),
+        Err(e) => HttpResponse::InternalServerError().json(ApiResponse::<()>::error(format!(
+            "获取 WebDAV 配置失败: {}",
+            e
+        ))),
     }
 }
 
@@ -6110,8 +6112,10 @@ async fn save_webdav_config(
             req.remote_path.trim(),
         ) {
         Ok(_) => HttpResponse::Ok().json(ApiResponse::success(true)),
-        Err(e) => HttpResponse::InternalServerError()
-            .json(ApiResponse::<()>::error(format!("保存 WebDAV 配置失败: {}", e))),
+        Err(e) => HttpResponse::InternalServerError().json(ApiResponse::<()>::error(format!(
+            "保存 WebDAV 配置失败: {}",
+            e
+        ))),
     }
 }
 
@@ -6127,8 +6131,10 @@ async fn delete_webdav_config(
         .delete_webdav_config()
     {
         Ok(_) => HttpResponse::Ok().json(ApiResponse::success(true)),
-        Err(e) => HttpResponse::InternalServerError()
-            .json(ApiResponse::<()>::error(format!("删除 WebDAV 配置失败: {}", e))),
+        Err(e) => HttpResponse::InternalServerError().json(ApiResponse::<()>::error(format!(
+            "删除 WebDAV 配置失败: {}",
+            e
+        ))),
     }
 }
 
