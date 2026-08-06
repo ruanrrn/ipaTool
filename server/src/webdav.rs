@@ -199,3 +199,170 @@ pub fn target_from_config(config: &crate::WebDAVConfig) -> Option<WebDAVTarget> 
         remote_path: config.remote_path.clone(),
     })
 }
+
+/// 目录条目
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct DirEntry {
+    pub name: String,
+    pub path: String,
+    pub is_dir: bool,
+}
+
+/// 列出 WebDAV 目录内容。
+/// 对目标 URL 发 PROPFIND Depth:1，解析返回的 XML 提取 href 和资源类型。
+/// 过滤掉自身（href == dir_url 或 href == dir_url/），只返回子条目。
+pub async fn list_directory(target: &WebDAVTarget) -> Result<Vec<DirEntry>, WebDAVError> {
+    let dir_url = target.dir_url();
+
+    let resp = target
+        .request(
+            reqwest::Method::from_bytes(b"PROPFIND").unwrap(),
+            &dir_url,
+        )
+        .header("Depth", "1")
+        .header("Content-Type", "application/xml; charset=utf-8")
+        .body(
+            r#"<?xml version="1.0" encoding="utf-8"?><propfind xmlns="DAV:"><prop><resourcetype/></prop></propfind>"#,
+        )
+        .send()
+        .await
+        .map_err(|e| WebDAVError(format!("PROPFIND 请求失败: {}", e)))?;
+
+    let status = resp.status().as_u16();
+    if status != 207 && status != 200 {
+        let body = resp.text().await.unwrap_or_default();
+        return Err(WebDAVError(format!(
+            "服务器返回异常状态: {} {}",
+            status,
+            body.chars().take(200).collect::<String>()
+        )));
+    }
+
+    let body = resp
+        .text()
+        .await
+        .map_err(|e| WebDAVError(format!("读取响应失败: {}", e)))?;
+
+    parse_propfind_response(&body, &dir_url)
+}
+
+/// 解析 PROPFIND 响应的 XML，提取目录条目。
+fn parse_propfind_response(xml: &str, base_url: &str) -> Result<Vec<DirEntry>, WebDAVError> {
+    use quick_xml::events::Event;
+    use quick_xml::Reader;
+
+    let mut reader = Reader::from_str(xml);
+    reader.trim_text(true);
+
+    let mut entries: Vec<DirEntry> = Vec::new();
+    let mut current_href: Option<String> = None;
+    let mut is_collection = false;
+    let mut in_propstat = false;
+    let mut in_prop = false;
+    let mut status_is_200 = false;
+    let mut in_href = false;
+    let mut in_status = false;
+    let mut buf = Vec::new();
+
+    loop {
+        match reader.read_event_into(&mut buf) {
+            Ok(Event::Start(ref e)) => {
+                let name = e.name();
+                match name.local_name().as_ref() {
+                    b"response" => {
+                        current_href = None;
+                        is_collection = false;
+                        in_propstat = false;
+                        in_prop = false;
+                        status_is_200 = false;
+                    }
+                    b"propstat" => {
+                        in_propstat = true;
+                    }
+                    b"prop" => {
+                        if in_propstat {
+                            in_prop = true;
+                        }
+                    }
+                    b"collection" => {
+                        if in_prop && status_is_200 {
+                            is_collection = true;
+                        }
+                    }
+                    b"href" => {
+                        in_href = true;
+                    }
+                    b"status" if in_propstat => {
+                        in_status = true;
+                    }
+                    _ => {}
+                }
+            }
+            Ok(Event::Text(ref e)) => {
+                if let Ok(text) = e.unescape() {
+                    if in_href {
+                        current_href = Some(text.to_string());
+                    } else if in_status {
+                        status_is_200 = text.contains("200 OK");
+                    }
+                }
+            }
+            Ok(Event::End(ref e)) => {
+                let name = e.name();
+                match name.local_name().as_ref() {
+                    b"response" => {
+                        if let Some(ref href) = current_href {
+                            let normalized_href = href.trim_end_matches('/');
+                            let normalized_base = base_url.trim_end_matches('/');
+                            if normalized_href == normalized_base {
+                                continue;
+                            }
+                            let name_part = normalized_href
+                                .rsplit_once('/')
+                                .map(|(_, n)| n)
+                                .unwrap_or(normalized_href);
+                            let decoded = urlencoding::decode(name_part)
+                                .unwrap_or(std::borrow::Cow::Borrowed(name_part));
+                            let rel_path = if let Some(stripped) =
+                                normalized_href.strip_prefix(normalized_base)
+                            {
+                                let rest = stripped.trim_start_matches('/');
+                                if rest.is_empty() {
+                                    String::new()
+                                } else {
+                                    rest.to_string()
+                                }
+                            } else {
+                                name_part.to_string()
+                            };
+                            entries.push(DirEntry {
+                                name: decoded.to_string(),
+                                path: rel_path,
+                                is_dir: is_collection,
+                            });
+                        }
+                    }
+                    b"propstat" => {
+                        in_propstat = false;
+                        in_prop = false;
+                    }
+                    b"href" => {
+                        in_href = false;
+                    }
+                    b"status" => {
+                        in_status = false;
+                    }
+                    _ => {}
+                }
+            }
+            Ok(Event::Eof) => break,
+            Err(e) => {
+                return Err(WebDAVError(format!("XML 解析错误: {}", e)));
+            }
+            _ => {}
+        }
+        buf.clear();
+    }
+
+    Ok(entries)
+}

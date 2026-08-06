@@ -6071,8 +6071,10 @@ async fn get_webdav_config(
             "remote_path": "/",
             "updated_at": null,
         }))),
-        Err(e) => HttpResponse::InternalServerError()
-            .json(ApiResponse::<()>::error(format!("获取 WebDAV 配置失败: {}", e))),
+        Err(e) => HttpResponse::InternalServerError().json(ApiResponse::<()>::error(format!(
+            "获取 WebDAV 配置失败: {}",
+            e
+        ))),
     }
 }
 
@@ -6110,8 +6112,10 @@ async fn save_webdav_config(
             req.remote_path.trim(),
         ) {
         Ok(_) => HttpResponse::Ok().json(ApiResponse::success(true)),
-        Err(e) => HttpResponse::InternalServerError()
-            .json(ApiResponse::<()>::error(format!("保存 WebDAV 配置失败: {}", e))),
+        Err(e) => HttpResponse::InternalServerError().json(ApiResponse::<()>::error(format!(
+            "保存 WebDAV 配置失败: {}",
+            e
+        ))),
     }
 }
 
@@ -6127,8 +6131,10 @@ async fn delete_webdav_config(
         .delete_webdav_config()
     {
         Ok(_) => HttpResponse::Ok().json(ApiResponse::success(true)),
-        Err(e) => HttpResponse::InternalServerError()
-            .json(ApiResponse::<()>::error(format!("删除 WebDAV 配置失败: {}", e))),
+        Err(e) => HttpResponse::InternalServerError().json(ApiResponse::<()>::error(format!(
+            "删除 WebDAV 配置失败: {}",
+            e
+        ))),
     }
 }
 
@@ -6181,6 +6187,54 @@ async fn test_webdav_connection(
         Ok(_) => HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({
             "ok": true,
             "message": "连接成功"
+        }))),
+        Err(e) => HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({
+            "ok": false,
+            "message": e.0
+        }))),
+    }
+}
+
+/// 浏览 WebDAV 目录（不保存配置，仅列出指定路径的子目录/文件）。
+async fn browse_webdav_directory(
+    _admin: AuthenticatedAdmin,
+    req: web::Json<WebDAVTestRequest>,
+    data: web::Data<AppState>,
+) -> impl Responder {
+    // password 为空 = 用已保存的密码
+    let password = if req.password.is_empty() {
+        match data
+            .db
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get_webdav_config()
+        {
+            Ok(Some(existing)) => existing.password,
+            _ => String::new(),
+        }
+    } else {
+        req.password.clone()
+    };
+
+    let config = ipa_webtool_services::WebDAVConfig {
+        enabled: true,
+        url: req.url.trim().to_string(),
+        username: req.username.trim().to_string(),
+        password,
+        remote_path: req.remote_path.trim().to_string(),
+        updated_at: None,
+    };
+    let target = match ipa_webtool_services::webdav::target_from_config(&config) {
+        Some(t) => t,
+        None => {
+            return HttpResponse::BadRequest()
+                .json(ApiResponse::<()>::error("WebDAV URL 不能为空".to_string()))
+        }
+    };
+
+    match ipa_webtool_services::webdav::list_directory(&target).await {
+        Ok(entries) => HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({
+            "entries": entries,
         }))),
         Err(e) => HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({
             "ok": false,
@@ -7230,6 +7284,7 @@ async fn main() -> std::io::Result<()> {
                              .route("/webdav/config", web::post().to(save_webdav_config))
                              .route("/webdav/config", web::delete().to(delete_webdav_config))
                              .route("/webdav/test", web::post().to(test_webdav_connection))
+                             .route("/webdav/browse", web::post().to(browse_webdav_directory))
                              .route("/community/publish", web::post().to(publish_community_archive))
                              .route("/local/delisted-candidates", web::get().to(get_local_delisted_candidates))
                              .route("/community/contributing-ids", web::get().to(get_contributing_ids))
