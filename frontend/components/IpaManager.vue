@@ -58,6 +58,11 @@
         />
       </div>
     </div>
+
+    <!-- Batch Download Queue -->
+    <div class="queue-page__batch px-5">
+      <BatchQueue />
+    </div>
   </div>
 </template>
 
@@ -67,6 +72,7 @@ import { API_BASE } from '../config.js'
 
 import { Toast } from './MobileToast.vue'
 import { Confirm } from './MobileConfirm.vue'
+import BatchQueue from './BatchQueue.vue'
 import IpaActiveTasksSection from './IpaActiveTasksSection.vue'
 import IpaArtifactsSection from './IpaArtifactsSection.vue'
 import { useAppStore } from '../stores/app'
@@ -504,5 +510,16 @@ onActivated(() => {
 }
 .q-btn--danger-text:active {
  opacity: 0.7;
+}
+
+/* Batch queue section spacing */
+.queue-page__batch {
+  padding-top: 16px;
+  padding-bottom: 24px;
+  border-top: 1px solid var(--color-border, #ebebeb);
+  margin-top: 8px;
+}
+.dark .queue-page__batch {
+  border-color: var(--color-border, #27272a);
 }
 </style>
