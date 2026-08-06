@@ -57,6 +57,18 @@ pub struct GitHubToken {
     pub updated_at: Option<String>,
 }
 
+/// WebDAV 上传配置（单行表，id 固定为 1）。
+/// 下载完成后若 enabled=true，自动把 IPA PUT 到 url+remote_path。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WebDAVConfig {
+    pub enabled: bool,
+    pub url: String,
+    pub username: String,
+    pub password: String,
+    pub remote_path: String,
+    pub updated_at: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EncryptionKey {
     pub id: Option<i64>,
@@ -318,6 +330,22 @@ impl Database {
                 FOREIGN KEY (username) REFERENCES admin_users(username) ON DELETE CASCADE
             )
         ",
+            [],
+        )?;
+
+        conn.execute(
+            "
+            CREATE TABLE IF NOT EXISTS webdav_config (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                enabled INTEGER NOT NULL DEFAULT 0,
+                url TEXT NOT NULL DEFAULT '',
+                username TEXT NOT NULL DEFAULT '',
+                password TEXT NOT NULL DEFAULT '',
+                remote_path TEXT NOT NULL DEFAULT '/',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+            ",
             [],
         )?;
 
@@ -825,6 +853,65 @@ impl Database {
             "DELETE FROM github_tokens WHERE username = ?",
             params![username],
         )?;
+        Ok(())
+    }
+
+    // ===== WebDAV Config =====
+
+    pub fn get_webdav_config(&self) -> Result<Option<WebDAVConfig>> {
+        let conn = self.connection.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT enabled, url, username, password, remote_path, updated_at
+             FROM webdav_config WHERE id = 1",
+        )?;
+        let config = stmt
+            .query_row([], |row| {
+                Ok(WebDAVConfig {
+                    enabled: row.get::<_, i64>(0)? != 0,
+                    url: row.get(1)?,
+                    username: row.get(2)?,
+                    password: row.get(3)?,
+                    remote_path: row.get(4)?,
+                    updated_at: row.get(5)?,
+                })
+            })
+            .optional()?;
+        Ok(config)
+    }
+
+    pub fn upsert_webdav_config(
+        &self,
+        enabled: bool,
+        url: &str,
+        username: &str,
+        password: &str,
+        remote_path: &str,
+    ) -> Result<()> {
+        let conn = self.connection.lock().unwrap();
+        conn.execute(
+            "INSERT INTO webdav_config (id, enabled, url, username, password, remote_path, updated_at)
+             VALUES (1, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+             ON CONFLICT(id) DO UPDATE SET
+                 enabled = excluded.enabled,
+                 url = excluded.url,
+                 username = excluded.username,
+                 password = excluded.password,
+                 remote_path = excluded.remote_path,
+                 updated_at = CURRENT_TIMESTAMP",
+            params![
+                enabled as i64,
+                url,
+                username,
+                password,
+                remote_path
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn delete_webdav_config(&self) -> Result<()> {
+        let conn = self.connection.lock().unwrap();
+        conn.execute("DELETE FROM webdav_config WHERE id = 1", [])?;
         Ok(())
     }
 
